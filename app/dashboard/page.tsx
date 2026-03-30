@@ -147,7 +147,7 @@ export default function DashboardPage() {
               Login successful! Manage your profile and applications here.
             </p>
 
-            <div className="grid md:grid-cols-3 gap-6">
+            <div className="grid md:grid-cols-4 gap-6">
               {/* Profile Card */}
               <motion.div
                 whileHover={{ scale: 1.05, y: -5 }}
@@ -202,6 +202,18 @@ export default function DashboardPage() {
                 <h3 className="font-semibold text-gray-800 mb-2">Documents</h3>
                 <p className="text-sm text-gray-600">Upload documents</p>
               </motion.div>
+
+              {/* Employee CRM Card */}
+              <Link href="/crm">
+                <motion.div
+                  whileHover={{ scale: 1.05, y: -5 }}
+                  className="bg-gradient-to-br from-orange-50 to-orange-100 p-6 rounded-xl cursor-pointer transition-all hover:shadow-lg h-full"
+                >
+                  <Briefcase className="w-8 h-8 text-orange-600 mb-3" />
+                  <h3 className="font-semibold text-gray-800 mb-2">Employee CRM</h3>
+                  <p className="text-sm text-gray-600">Manage leads and follow-ups</p>
+                </motion.div>
+              </Link>
             </div>
           </motion.div>
         </div>

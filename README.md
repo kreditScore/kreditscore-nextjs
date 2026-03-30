@@ -54,6 +54,41 @@ Modern, responsive loan and credit score website built with **Next.js 14**, **Ty
 - **Icons**: Lucide React
 - **Fonts**: Poppins (Google Fonts)
 
+## 🧩 CRM Module (Employee/Admin)
+
+- `Employee Login` can open CRM at `/crm`
+- `Admin Login` can open admin panel at `/admin`
+- `Customer Login` continues to `/dashboard`
+- Lead API endpoints:
+  - `GET /api/crm/leads`
+  - `POST /api/crm/leads`
+  - `PATCH /api/crm/leads/:id`
+- In-app CRM currently uses an in-memory store for fast setup/demo.
+
+## 🗄️ Database & Auth Recommendation (Free-friendly)
+
+- Recommended: **Supabase + PostgreSQL** (free tier available)
+- SQL schema file: `supabase/crm_schema.sql`
+- Environment template: `.env.example`
+- Why this setup:
+  - PostgreSQL for scalable lead and profile data
+  - Supabase Auth for employee/admin/customer authentication
+  - Easy future API integrations via Next.js API routes
+
+### Supabase Setup Steps
+
+1. Create a free Supabase project.
+2. Open SQL Editor and run `supabase/crm_schema.sql`.
+3. Copy `.env.example` to `.env.local` and fill:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+4. Restart app with `npm run dev`.
+5. Open `/admin` and create team users (email + password).
+6. Use `/login`:
+   - Employee/Admin login with email/password
+   - Customer login keeps OTP flow (demo mode)
+
 ## 🛠️ Installation
 
 ### Prerequisites:

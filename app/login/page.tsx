@@ -7,11 +7,15 @@ import Header from '@/components/Header';
 import CustomCursor from '@/components/CustomCursor';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { supabaseClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
   const router = useRouter();
   const [mobile, setMobile] = useState('');
   const [otp, setOtp] = useState('');
+  const [loginRole, setLoginRole] = useState<'customer' | 'employee' | 'admin'>('customer');
+  const [teamEmail, setTeamEmail] = useState('');
+  const [teamPassword, setTeamPassword] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [countdown, setCountdown] = useState(0);
@@ -67,12 +71,67 @@ export default function LoginPage() {
     if (otp === '1234') {
       setIsLoading(true);
       setTimeout(() => {
-        // Redirect to dashboard after successful login
+        if (loginRole === 'employee') {
+          router.push('/crm');
+          return;
+        }
+        if (loginRole === 'admin') {
+          router.push('/admin');
+          return;
+        }
         router.push('/dashboard');
       }, 1000);
     } else {
       alert('Invalid OTP. Please use 1234 for testing.');
     }
+  };
+
+  const handleTeamLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!teamEmail || !teamPassword) {
+      alert('Email and password are required.');
+      return;
+    }
+    if (!supabaseClient) {
+      alert('Supabase not configured. Please set env values first.');
+      return;
+    }
+
+    setIsLoading(true);
+    const loginResult = await supabaseClient.auth.signInWithPassword({
+      email: teamEmail.trim().toLowerCase(),
+      password: teamPassword
+    });
+    if (loginResult.error) {
+      setIsLoading(false);
+      alert(loginResult.error.message);
+      return;
+    }
+
+    const roleResponse = await fetch(
+      `/api/auth/team-role?email=${encodeURIComponent(teamEmail.trim().toLowerCase())}`
+    );
+    const rolePayload = await roleResponse.json();
+    if (!roleResponse.ok) {
+      setIsLoading(false);
+      alert(rolePayload.error ?? 'Role check failed.');
+      return;
+    }
+
+    const serverRole = String(rolePayload?.data?.role ?? '');
+    const expectedRole = loginRole === 'admin' ? 'admin' : 'executive';
+    const isAllowed =
+      expectedRole === 'admin'
+        ? serverRole === 'admin' || serverRole === 'super_admin'
+        : serverRole === 'executive' || serverRole === 'team_lead' || serverRole === 'admin';
+
+    setIsLoading(false);
+    if (!isAllowed) {
+      alert('This account does not have permission for selected login type.');
+      return;
+    }
+
+    router.push(loginRole === 'admin' ? '/admin' : '/crm');
   };
 
   const handleGoogleSignIn = () => {
@@ -132,8 +191,78 @@ export default function LoginPage() {
             </p>
 
             {/* Mobile Number Form */}
-            {!otpSent ? (
+            {loginRole !== 'customer' ? (
+              <form onSubmit={handleTeamLogin} className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Login as</label>
+                  <select
+                    value={loginRole}
+                    onChange={(e) => setLoginRole(e.target.value as 'customer' | 'employee' | 'admin')}
+                    className="block w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                  >
+                    <option value="customer">Customer Login</option>
+                    <option value="employee">Employee Login</option>
+                    <option value="admin">Admin Login</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Login ID (email)</label>
+                  <input
+                    type="email"
+                    value={teamEmail}
+                    onChange={(e) => setTeamEmail(e.target.value)}
+                    placeholder="name@kreditscore.in"
+                    className="block w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                  <input
+                    type="password"
+                    value={teamPassword}
+                    onChange={(e) => setTeamPassword(e.target.value)}
+                    placeholder="Enter password"
+                    className="block w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    required
+                  />
+                </div>
+
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:from-indigo-700 hover:to-indigo-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isLoading ? (
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      Login to {loginRole === 'admin' ? 'Admin Panel' : 'Employee CRM'}
+                      <ArrowRight className="w-5 h-5" />
+                    </>
+                  )}
+                </motion.button>
+              </form>
+            ) : !otpSent ? (
               <form onSubmit={handleSendOTP} className="space-y-6">
+                {/* Mobile Input */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Login as</label>
+                  <select
+                    value={loginRole}
+                    onChange={(e) => setLoginRole(e.target.value as 'customer' | 'employee' | 'admin')}
+                    className="block w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                  >
+                    <option value="customer">Customer Login</option>
+                    <option value="employee">Employee Login</option>
+                    <option value="admin">Admin Login</option>
+                  </select>
+                </div>
+
                 {/* Mobile Input */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
