@@ -33,8 +33,6 @@ import {
   BookOpen,
   Lightbulb,
   Video,
-  UserCircle,
-  UserSquare,
   Download
 } from 'lucide-react';
 
@@ -116,12 +114,6 @@ const Header = () => {
     }
   ];
 
-  const loginItems: DropdownItem[] = [
-    { href: '#customer-login', icon: UserCircle, title: 'Customer Login', subtitle: 'Access your account' },
-    { href: '#employee-login', icon: UserSquare, title: 'Employee Login', subtitle: 'Staff portal' },
-    { href: '#partner-login', icon: Handshake, title: 'Partner Login', subtitle: 'Partner dashboard' },
-  ];
-
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
@@ -187,32 +179,16 @@ const Header = () => {
               </div>
             ))}
 
-            {/* Login Dropdown */}
-            <div className="relative group">
-              <button className="flex items-center gap-1.5 px-3 py-2 text-[#FF8C00] text-[14px] font-medium hover:bg-[rgba(255,140,0,0.05)] rounded-lg transition-all duration-300">
+            {/* CRM Login Link */}
+            <a
+              href="https://crm.kreditscore.in"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-3 py-2 text-[#FF8C00] text-[14px] font-medium hover:bg-[rgba(255,140,0,0.05)] rounded-lg transition-all duration-300"
+            >
                 <User className="w-4 h-4 text-[#87CEEB]" />
                 <span>Login</span>
-                <ChevronDown className="w-4 h-4" />
-              </button>
-
-              <div className="absolute right-0 mt-2 w-20 bg-white rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 transform group-hover:translate-y-0 translate-y-2">
-                <div className="py-0.5">
-                  {loginItems.map((item) => {
-                    const Icon = item.icon;
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        className="flex flex-col items-center px-1.5 py-1.5 hover:bg-gradient-to-r hover:from-[rgba(255,140,0,0.05)] hover:to-[rgba(135,206,235,0.05)] transition-colors duration-200 group/item"
-                      >
-                        <Icon className="w-3.5 h-3.5 text-[#87CEEB] group-hover/item:text-[#FF8C00] flex-shrink-0 transition-colors duration-200" />
-                        <div className="text-[9px] font-semibold text-gray-900 group-hover/item:text-[#FF8C00] transition-colors duration-200 text-center mt-0.5 leading-tight">{item.title.replace(' Login', '')}</div>
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
+            </a>
           </nav>
 
           {/* Mobile Hamburger */}
@@ -278,48 +254,15 @@ const Header = () => {
               </div>
             ))}
 
-            {/* Mobile Login */}
-            <div className="border-b border-gray-100 pb-2">
-              <button
-                onClick={() => handleDropdownToggle('Login')}
-                className="flex items-center justify-between w-full px-4 py-3 text-left text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
-              >
-                <span className="font-medium">👤 Login</span>
-                <ChevronDown
-                  className={`w-4 h-4 transition-transform ${
-                    activeDropdown === 'Login' ? 'rotate-180' : ''
-                  }`}
-                />
-              </button>
-
-              {activeDropdown === 'Login' && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  className="mt-2 space-y-1"
-                >
-                  {loginItems.map((item) => {
-                    const Icon = item.icon;
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        className="flex items-start px-4 py-2 hover:bg-gray-50 rounded-lg transition-colors"
-                        onClick={() => setIsMobileMenuOpen(false)}
-                      >
-                        <Icon className="w-6 h-6 text-[#87CEEB] mt-0.5 flex-shrink-0" />
-                        <div className="ml-3">
-                          <div className="text-sm font-semibold text-gray-900">{item.title}</div>
-                          {item.subtitle && (
-                            <div className="text-xs text-gray-500 mt-0.5">{item.subtitle}</div>
-                          )}
-                        </div>
-                      </Link>
-                    );
-                  })}
-                </motion.div>
-              )}
-            </div>
+            <a
+              href="https://crm.kreditscore.in"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center w-full px-4 py-3 text-left text-[#FF8C00] hover:bg-gray-50 rounded-lg transition-colors font-medium border-b border-gray-100 pb-3"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              👤 Login
+            </a>
 
             {/* Mobile Download App Button */}
             <Link

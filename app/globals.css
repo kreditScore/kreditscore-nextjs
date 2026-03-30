@@ -12,12 +12,12 @@
 
 @layer base {
   * {
-    cursor: none !important;
+    cursor: auto !important;
   }
 
   body {
     @apply bg-gradient-to-br from-slate-50 via-blue-50 to-slate-50 text-gray-900;
-    cursor: none !important;
+    cursor: auto !important;
   }
 
   /* Custom Cursor Styles */
