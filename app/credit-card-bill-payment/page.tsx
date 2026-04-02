@@ -24,7 +24,6 @@ import { usePathname } from 'next/navigation';
 import { captureLead } from '@/lib/leadCapture';
 import { useAuth } from '@/components/AuthProvider';
 import ApplicantRelationFields from '@/components/ApplicantRelationFields';
-import SupabaseAuthInline from '@/components/SupabaseAuthInline';
 import { getSupabaseDisplayName, getSupabasePhoneDigits } from '@/lib/supabase/user';
 import { isValidIndianMobile } from '@/lib/validation';
 
@@ -81,7 +80,6 @@ export default function CreditCardBillPaymentPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (authLoading || !user) return;
     const borrowerName = applicantFor === 'other' ? applicantName.trim() : name.trim();
     const borrowerMobile = applicantFor === 'other' ? applicantMobile : mobile;
     if (borrowerName.length < 2 || !isValidIndianMobile(borrowerMobile)) return;
@@ -248,13 +246,13 @@ export default function CreditCardBillPaymentPage() {
                         </motion.p>
                       </div>
 
-                      {authLoading && (
-                        <p className="text-center text-sm text-gray-500 py-6">Loading…</p>
-                      )}
-                      {!authLoading && !user && (
-                        <SupabaseAuthInline returnPath={pathname} />
-                      )}
-                      {!authLoading && user && (
+                      <p className="text-[10px] text-center text-gray-500 mb-2">
+                        Bina login apply kar sakte ho. Optional:{' '}
+                        <Link href={`/login?returnUrl=${encodeURIComponent(pathname)}`} className="text-blue-600 font-semibold underline">
+                          Sign in
+                        </Link>{' '}
+                        (prefill ke liye).
+                      </p>
                         <form onSubmit={handleSubmit} className="space-y-3">
                           <ApplicantRelationFields
                             applicantFor={applicantFor}
@@ -347,7 +345,6 @@ export default function CreditCardBillPaymentPage() {
                             </Link>
                           </p>
                         </form>
-                      )}
                     </>
                   ) : (
                     <motion.div

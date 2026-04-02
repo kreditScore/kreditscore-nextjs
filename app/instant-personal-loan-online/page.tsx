@@ -8,14 +8,13 @@ import CustomCursor from '@/components/CustomCursor';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
-import SupabaseAuthInline from '@/components/SupabaseAuthInline';
 import { getSupabaseDisplayName, getSupabasePhoneDigits } from '@/lib/supabase/user';
 
 export default function ApplyLoanPage() {
   const router = useRouter();
   const pathname = usePathname();
   const isPreApproved = pathname === '/pre-approved-personal-loan';
-  const { user, loading: authLoading } = useAuth();
+  const { user } = useAuth();
   const [name, setName] = useState('');
   const [mobile, setMobile] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -589,13 +588,12 @@ export default function ApplyLoanPage() {
                         </motion.p>
                       </div>
 
-                      {authLoading && (
-                        <p className="text-center text-sm text-gray-500 py-6">Loading…</p>
-                      )}
-                      {!authLoading && !user && (
-                        <SupabaseAuthInline returnPath={pathname} />
-                      )}
-                      {!authLoading && user && (
+                      <p className="text-[9px] sm:text-[10px] text-center text-gray-500 mb-2">
+                        Apply bina login. Optional:{' '}
+                        <Link href={`/login?returnUrl=${encodeURIComponent(pathname)}`} className="text-blue-600 font-semibold underline">
+                          Sign in
+                        </Link>
+                      </p>
                       <AnimatePresence mode="wait">
                           <motion.div
                             key="application-form"
@@ -1075,7 +1073,6 @@ export default function ApplyLoanPage() {
                             </form>
                           </motion.div>
                       </AnimatePresence>
-                      )}
                     </>
                   ) : (
                     /* Thank You Success Animation */

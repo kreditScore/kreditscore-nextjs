@@ -35,15 +35,12 @@ import {
   Send,
   Smartphone
 } from 'lucide-react';
-import { usePathname } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
-import SupabaseAuthInline from '@/components/SupabaseAuthInline';
 import { getSupabaseDisplayName, getSupabasePhoneDigits } from '@/lib/supabase/user';
 
 export default function SalariedOverdraftPage() {
-  const pathname = usePathname();
-  const { user, loading: authLoading } = useAuth();
-  // Form Steps: 0 = Name+Mobile, 2 = Personal … 6 = OD (Supabase login gate)
+  const { user } = useAuth();
+  // Form Steps: 0 = Name+Mobile, 2 = Personal … 6 = OD (login optional)
   const [formStep, setFormStep] = useState(0);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
@@ -695,10 +692,6 @@ export default function SalariedOverdraftPage() {
                       </p>
                     </motion.div>
                   </motion.div>
-                ) : authLoading ? (
-                  <p className="text-center py-8 text-gray-600">Loading…</p>
-                ) : !user ? (
-                  <SupabaseAuthInline returnPath={pathname} />
                 ) : (
                   <AnimatePresence mode="wait">
                     <motion.form

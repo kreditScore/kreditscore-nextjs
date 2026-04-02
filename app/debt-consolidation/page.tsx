@@ -30,15 +30,12 @@ import {
   ArrowLeft,
   CheckCircle2
 } from 'lucide-react';
-import { usePathname } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
-import SupabaseAuthInline from '@/components/SupabaseAuthInline';
 import { getSupabaseDisplayName, getSupabasePhoneDigits } from '@/lib/supabase/user';
 
 export default function DebtConsolidationPage() {
-  const pathname = usePathname();
-  const { user, loading: authLoading } = useAuth();
-  // 0: Name+Mobile, 2: Personal … 6: Loan Details (Supabase phone login gate)
+  const { user } = useAuth();
+  // 0: Name+Mobile, 2: Personal … 6: Loan Details (login optional for prefill)
   const [formStep, setFormStep] = useState(0);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
@@ -620,10 +617,6 @@ export default function DebtConsolidationPage() {
                     </p>
                   </motion.div>
                 </motion.div>
-              ) : authLoading ? (
-                <p className="text-center py-8 text-gray-600">Loading…</p>
-              ) : !user ? (
-                <SupabaseAuthInline returnPath={pathname} />
               ) : (
                 <form onSubmit={formStep === 0 ? handleContinueFromStep0 : handleSubmit}>
                   <AnimatePresence mode="wait">
