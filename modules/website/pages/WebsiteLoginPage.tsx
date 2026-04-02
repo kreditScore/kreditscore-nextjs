@@ -16,7 +16,7 @@ import {
   createUserWithEmailAndPassword,
   type ConfirmationResult,
 } from 'firebase/auth';
-import { getFirebaseAuth } from '@/lib/firebase';
+import { getFirebaseAuth, isFirebaseConfigured } from '@/lib/firebase';
 import { isValidIndianMobile, normalizeIndianMobile } from '@/lib/validation';
 
 type Tab = 'phone' | 'email';
@@ -61,6 +61,7 @@ export default function WebsiteLoginPage() {
 
   const ensureRecaptcha = () => {
     const auth = getFirebaseAuth();
+    if (!auth) throw new Error('Firebase not configured');
     if (!recaptchaRef.current) {
       recaptchaRef.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
         size: 'invisible',
@@ -72,6 +73,12 @@ export default function WebsiteLoginPage() {
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (!getFirebaseAuth()) {
+      setError(
+        'Firebase is not configured. In Vercel → Project → Settings → Environment Variables, add all NEXT_PUBLIC_FIREBASE_* keys from Firebase Console, then Redeploy.'
+      );
+      return;
+    }
     const digits = normalizeIndianMobile(mobile);
     if (!isValidIndianMobile(digits)) {
       setError('Enter a valid 10-digit Indian mobile number.');
@@ -79,7 +86,7 @@ export default function WebsiteLoginPage() {
     }
     setIsLoading(true);
     try {
-      const auth = getFirebaseAuth();
+      const auth = getFirebaseAuth()!;
       const appVerifier = ensureRecaptcha();
       const phoneE164 = `+91${digits}`;
       const confirmation = await signInWithPhoneNumber(auth, phoneE164, appVerifier);
@@ -117,9 +124,15 @@ export default function WebsiteLoginPage() {
 
   const handleGoogle = async () => {
     setError(null);
+    if (!getFirebaseAuth()) {
+      setError(
+        'Firebase is not configured. Add NEXT_PUBLIC_FIREBASE_* variables in Vercel (from Firebase Console → Project settings → Your apps), then Redeploy.'
+      );
+      return;
+    }
     setIsLoading(true);
     try {
-      const auth = getFirebaseAuth();
+      const auth = getFirebaseAuth()!;
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
       router.push(returnUrl);
@@ -141,6 +154,10 @@ export default function WebsiteLoginPage() {
     setIsLoading(true);
     try {
       const auth = getFirebaseAuth();
+      if (!auth) {
+        setError('Firebase is not configured. Add env vars in Vercel and redeploy.');
+        return;
+      }
       if (emailMode === 'signup') {
         await createUserWithEmailAndPassword(auth, email.trim(), password);
       } else {
@@ -197,6 +214,18 @@ export default function WebsiteLoginPage() {
             <p className="text-center text-sm text-gray-600 mb-8">
               One login — apply on any page without OTP again. Use phone OTP, Google, or email.
             </p>
+
+            {!isFirebaseConfigured() && (
+              <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-left text-xs text-amber-950">
+                <p className="font-semibold mb-1">Firebase not connected to this deployment</p>
+                <p className="leading-relaxed">
+                  Add all <span className="font-mono">NEXT_PUBLIC_FIREBASE_*</span> variables in Vercel (copy from
+                  Firebase Console → Project settings → Your apps → Web app config), then Redeploy. In Firebase:
+                  Authentication → Sign-in method: enable Phone, Google, and Email/Password as needed. Add your
+                  production domain under Authentication → Settings → Authorized domains.
+                </p>
+              </div>
+            )}
 
             <div className="flex rounded-xl bg-gray-100 p-1 mb-6">
               <button

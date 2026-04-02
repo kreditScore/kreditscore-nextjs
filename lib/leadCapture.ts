@@ -44,7 +44,7 @@ async function getOptionalIdToken(): Promise<string | undefined> {
   if (typeof window === 'undefined') return undefined;
   try {
     const { getFirebaseAuth } = await import('@/lib/firebase');
-    const u = getFirebaseAuth().currentUser;
+    const u = getFirebaseAuth()?.currentUser;
     if (!u) return undefined;
     return u.getIdToken();
   } catch {
@@ -64,7 +64,7 @@ export const captureLead = (payload: LeadPayload) => {
     let accountPhone: string | undefined;
     try {
       const { getFirebaseAuth } = await import('@/lib/firebase');
-      const u = getFirebaseAuth().currentUser;
+      const u = getFirebaseAuth()?.currentUser;
       accountUid = u?.uid;
       accountEmail = u?.email ?? undefined;
       accountPhone = u?.phoneNumber ?? undefined;

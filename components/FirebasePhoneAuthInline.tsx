@@ -9,7 +9,7 @@ import {
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Phone, ArrowRight, Lock } from 'lucide-react';
-import { getFirebaseAuth } from '@/lib/firebase';
+import { getFirebaseAuth, isFirebaseConfigured } from '@/lib/firebase';
 import { isValidIndianMobile, normalizeIndianMobile } from '@/lib/validation';
 
 type Props = {
@@ -74,6 +74,7 @@ export default function FirebasePhoneAuthInline({ returnPath, className = '' }: 
 
   const ensureRecaptcha = () => {
     const auth = getFirebaseAuth();
+    if (!auth) throw new Error('Firebase not configured');
     if (!recaptchaRef.current) {
       recaptchaRef.current = new RecaptchaVerifier(auth, containerId, {
         size: 'invisible',
@@ -85,6 +86,10 @@ export default function FirebasePhoneAuthInline({ returnPath, className = '' }: 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (!getFirebaseAuth()) {
+      setError('Firebase env missing. Add NEXT_PUBLIC_FIREBASE_* in Vercel and redeploy.');
+      return;
+    }
     const digits = normalizeIndianMobile(mobile);
     if (!isValidIndianMobile(digits)) {
       setError('Valid 10-digit Indian mobile required.');
@@ -92,7 +97,7 @@ export default function FirebasePhoneAuthInline({ returnPath, className = '' }: 
     }
     setLoading(true);
     try {
-      const auth = getFirebaseAuth();
+      const auth = getFirebaseAuth()!;
       const appVerifier = ensureRecaptcha();
       const confirmation = await signInWithPhoneNumber(auth, `+91${digits}`, appVerifier);
       confirmationRef.current = confirmation;
@@ -128,6 +133,21 @@ export default function FirebasePhoneAuthInline({ returnPath, className = '' }: 
       setLoading(false);
     }
   };
+
+  if (!isFirebaseConfigured()) {
+    return (
+      <div className={`rounded-xl border border-amber-200 bg-amber-50 p-3 sm:p-4 text-xs text-amber-950 ${className}`}>
+        <p className="font-semibold mb-1">Mobile login not available</p>
+        <p className="mb-2 leading-relaxed">
+          Add Firebase web config to Vercel: all <span className="font-mono">NEXT_PUBLIC_FIREBASE_*</span> variables
+          from Firebase Console → Project settings → Your apps, then Redeploy.
+        </p>
+        <Link href={`/login?returnUrl=${encodeURIComponent(ret)}`} className="text-blue-700 font-semibold underline">
+          Try full login page
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className={`rounded-xl border border-blue-100 bg-blue-50/40 p-3 sm:p-4 ${className}`}>

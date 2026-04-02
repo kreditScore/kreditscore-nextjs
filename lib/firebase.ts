@@ -1,7 +1,7 @@
-import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
+import { initializeApp, getApps, type FirebaseApp, type FirebaseOptions } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
 
-function readConfig() {
+function getFirebaseOptions(): FirebaseOptions | null {
   const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
   const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
   const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
@@ -11,9 +11,7 @@ function readConfig() {
   const measurementId = process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID;
 
   if (!apiKey || !authDomain || !projectId || !appId) {
-    throw new Error(
-      'Missing Firebase env vars. Copy .env.example → .env.local and add NEXT_PUBLIC_FIREBASE_* values.'
-    );
+    return null;
   }
 
   return {
@@ -27,18 +25,32 @@ function readConfig() {
   };
 }
 
+/** True when client env has minimum Firebase web config (public vars). */
+export function isFirebaseConfigured(): boolean {
+  return getFirebaseOptions() !== null;
+}
+
 let app: FirebaseApp | undefined;
 
-export function getFirebaseApp(): FirebaseApp {
+/**
+ * Returns Firebase app in the browser when env is valid; otherwise null.
+ * Never throws — use this when you need to avoid crashing the whole app on Vercel without env.
+ */
+export function getFirebaseApp(): FirebaseApp | null {
   if (typeof window === 'undefined') {
-    throw new Error('Firebase client SDK must run in the browser.');
+    return null;
+  }
+  const options = getFirebaseOptions();
+  if (!options) {
+    return null;
   }
   if (!app) {
-    app = getApps().length ? getApps()[0]! : initializeApp(readConfig());
+    app = getApps().length ? getApps()[0]! : initializeApp(options);
   }
   return app;
 }
 
-export function getFirebaseAuth(): Auth {
-  return getAuth(getFirebaseApp());
+export function getFirebaseAuth(): Auth | null {
+  const appInstance = getFirebaseApp();
+  return appInstance ? getAuth(appInstance) : null;
 }
