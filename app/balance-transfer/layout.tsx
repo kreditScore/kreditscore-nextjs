@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     title: 'Balance Transfer Loan - Cut Your EMI by Half | KreditScore',
     description: 'Reduce EMI by 50%! Transfer your high-interest loans to our low-rate balance transfer facility. Documentation required. Apply now!',
     type: 'website',
-    url: 'https://kreditscore.com/balance-transfer',
+    url: 'https://www.kreditscore.in/balance-transfer',
     siteName: 'KreditScore',
     images: [
       {
@@ -47,7 +47,7 @@ export const metadata: Metadata = {
     images: ['/og-image-balance-transfer.jpg'],
   },
   alternates: {
-    canonical: 'https://kreditscore.com/balance-transfer',
+    canonical: 'https://www.kreditscore.in/balance-transfer',
   },
   robots: {
     index: true,

@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     title: 'Teacher Loan - Zero Processing Fee for Educators | KreditScore',
     description: 'Special loan for teachers! Zero processing fee + low interest rates. Designed exclusively for educators and teaching professionals.',
     type: 'website',
-    url: 'https://kreditscore.com/teacher-loan',
+    url: 'https://www.kreditscore.in/teacher-loan',
     siteName: 'KreditScore',
     images: [
       {
@@ -47,7 +47,7 @@ export const metadata: Metadata = {
     images: ['/og-image-teacher-loan.jpg'],
   },
   alternates: {
-    canonical: 'https://kreditscore.com/teacher-loan',
+    canonical: 'https://www.kreditscore.in/teacher-loan',
   },
   robots: {
     index: true,

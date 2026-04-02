@@ -103,7 +103,6 @@ export default function BalanceTransferPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Form submitted:', formData);
     alert('Application submitted successfully! Our team will contact you within 24 hours.');
   };
 
@@ -140,7 +139,7 @@ export default function BalanceTransferPage() {
               "name": "KreditScore"
             },
             "interestRate": "Starting from 9.25% p.a.",
-            "url": "https://kreditscore.com/balance-transfer"
+            "url": "https://www.kreditscore.in/balance-transfer"
           })
         }}
       />

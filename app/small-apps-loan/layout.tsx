@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     title: 'Small Apps Loan - Get ₹10 Lacs in Just 2 Hours | KreditScore',
     description: 'Apply through our mobile app and get instant loan approval. Disbursal in 2 hours. Paperless, hassle-free process!',
     type: 'website',
-    url: 'https://kreditscore.com/small-apps-loan',
+    url: 'https://www.kreditscore.in/small-apps-loan',
     siteName: 'KreditScore',
     images: [
       {
@@ -47,7 +47,7 @@ export const metadata: Metadata = {
     images: ['/og-image-small-apps-loan.jpg'],
   },
   alternates: {
-    canonical: 'https://kreditscore.com/small-apps-loan',
+    canonical: 'https://www.kreditscore.in/small-apps-loan',
   },
   robots: {
     index: true,

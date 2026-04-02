@@ -1,1065 +1,610 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect, useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
 import {
-  CreditCard,
-  AlertTriangle,
-  TrendingDown,
-  TrendingUp,
   ArrowRight,
-  Phone,
-  CheckCircle,
-  Shield,
-  Zap,
+  Award,
   Calculator,
-  X,
-  IndianRupee,
-  Calendar,
-  Percent,
-  PartyPopper,
-  Wallet
+  CheckCircle,
+  Clock,
+  CreditCard,
+  FileText,
+  Phone,
+  Shield,
+  TrendingUp,
+  Users,
+  Wallet,
+  Zap,
 } from 'lucide-react';
 import Header from '@/components/Header';
 import CustomCursor from '@/components/CustomCursor';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { captureLead } from '@/lib/leadCapture';
+import { useAuth } from '@/components/AuthProvider';
+import ApplicantRelationFields from '@/components/ApplicantRelationFields';
+import FirebasePhoneAuthInline from '@/components/FirebasePhoneAuthInline';
+import { isValidIndianMobile } from '@/lib/validation';
+
+const formatINR = (n: number) =>
+  n.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+
+const CC_RATE = 45;
+const PL_RATE = 10.25;
+const CALC_MIN = 10_000;
+const CALC_MAX = 500_000;
 
 export default function CreditCardBillPaymentPage() {
-  const [mobile, setMobile] = useState('');
+  const pathname = usePathname();
+  const { user, loading: authLoading } = useAuth();
   const [name, setName] = useState('');
-  const [outstandingAmount, setOutstandingAmount] = useState('');
-  const [otp, setOtp] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpVerified, setOtpVerified] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [countdown, setCountdown] = useState(0);
-  const [isSubmitted, setIsSubmitted] = useState(false);
-  const [formStep, setFormStep] = useState(1);
+  const [mobile, setMobile] = useState('');
+  const [applicantFor, setApplicantFor] = useState<'self' | 'other'>('self');
+  const [applicantName, setApplicantName] = useState('');
+  const [applicantMobile, setApplicantMobile] = useState('');
+  const [relationshipNote, setRelationshipNote] = useState('');
+  const [ccBillAmount, setCcBillAmount] = useState(500_000);
+  const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  // Form data state
-  const [formData, setFormData] = useState({
-    panCard: '',
-    dob: '',
-    companyName: '',
-    netSalary: '',
-    currentAddress: '',
-    currentCity: '',
-    currentState: '',
-    currentPincode: '',
-  });
-
-  // Calculator states
-  const [ccBillAmount, setCcBillAmount] = useState(50000);
-  const [minimumPayment, setMinimumPayment] = useState(2500);
-  const [showCalculator, setShowCalculator] = useState(false);
-
-  // Countdown timer
   useEffect(() => {
-    if (countdown > 0) {
-      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [countdown]);
+    if (!user) return;
+    const p = user.phoneNumber?.replace(/\D/g, '').slice(-10);
+    if (p && p.length === 10) setMobile(p);
+    if (user.displayName) setName(user.displayName);
+  }, [user]);
 
-  // Auto OTP
-  useEffect(() => {
-    if (otpSent) {
-      setTimeout(() => {
-        const autoOtp = '1234';
-        setOtp(autoOtp);
-        setTimeout(() => {
-          if (autoOtp === '1234') {
-            setIsLoading(true);
-            setTimeout(() => {
-              setOtpVerified(true);
-              setIsLoading(false);
-            }, 800);
-          }
-        }, 500);
-      }, 2000);
-    }
-  }, [otpSent]);
+  const { ccMonthly, plMonthly, monthlySave, annualSave } = useMemo(() => {
+    const cc = (ccBillAmount * CC_RATE) / 100 / 12;
+    const pl = (ccBillAmount * PL_RATE) / 100 / 12;
+    const m = Math.max(cc - pl, 0);
+    return {
+      ccMonthly: Math.round(cc),
+      plMonthly: Math.round(pl),
+      monthlySave: Math.round(m),
+      annualSave: Math.round(m * 12),
+    };
+  }, [ccBillAmount]);
 
-  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    const capitalizedValue = value
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(' ');
-    setName(capitalizedValue);
+  const handleName = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = e.target.value;
+    setName(
+      v
+        .split(' ')
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+        .join(' ')
+    );
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/\D/g, '');
-    if (value.length >= 2) {
-      value = value.slice(0, 2) + '/' + value.slice(2);
-    }
-    if (value.length >= 5) {
-      value = value.slice(0, 5) + '/' + value.slice(5, 9);
-    }
-    setFormData(prev => ({ ...prev, dob: value }));
-  };
-
-  const validateAge = (dob: string): boolean => {
-    if (dob.length !== 10) return false;
-    const [day, month, year] = dob.split('/').map(Number);
-    const birthDate = new Date(year, month - 1, day);
-    const today = new Date();
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
-    }
-    return age >= 18 && age <= 100;
-  };
-
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitted(true);
+    if (authLoading || !user) return;
+    const borrowerName = applicantFor === 'other' ? applicantName.trim() : name.trim();
+    const borrowerMobile = applicantFor === 'other' ? applicantMobile : mobile;
+    if (borrowerName.length < 2 || !isValidIndianMobile(borrowerMobile)) return;
+    if (applicantFor === 'other' && !applicantName.trim()) return;
+
+    setLoading(true);
+    captureLead({
+      source: 'loan_modal_form',
+      name: borrowerName,
+      mobile: borrowerMobile,
+      loanType: 'credit_card_bill_payment',
+      amount: String(ccBillAmount),
+      applicantFor,
+      applicantName: applicantFor === 'other' ? borrowerName : undefined,
+      applicantMobile: applicantFor === 'other' ? borrowerMobile : undefined,
+      relationshipNote: applicantFor === 'other' ? relationshipNote.trim() || undefined : undefined,
+    });
+    setTimeout(() => {
+      setLoading(false);
+      setSubmitted(true);
+    }, 800);
   };
 
-  const handleSendOTP = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (name.trim() && mobile.length === 10 && outstandingAmount.trim()) {
-      setIsLoading(true);
-      setTimeout(() => {
-        setOtpSent(true);
-        setIsLoading(false);
-        setCountdown(30);
-      }, 1500);
-    }
+  const cardVariants = {
+    hidden: { opacity: 0, y: 50, rotateX: -15 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      rotateX: 0,
+      transition: { duration: 0.6, ease: 'easeOut' },
+    },
   };
 
-  const handleVerifyOTP = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (otp === '1234') {
-      setIsLoading(true);
-      setTimeout(() => {
-        setOtpVerified(true);
-        setIsLoading(false);
-        setIsSubmitted(true);
-      }, 1000);
-    }
+  const floatingAnimation = {
+    y: [0, -10, 0],
+    transition: { duration: 3, repeat: Infinity, ease: 'easeInOut' },
   };
-
-  // Calculations
-  // Credit Card: 45% flat (charges on full amount every month)
-  const ccInterest = 3.75; // 45% p.a. flat = 3.75% per month
-  // Personal Loan: 10.25% reducing (effective monthly rate much lower)
-  const plInterest = 0.854; // 10.25% p.a. reducing ≈ 0.854% per month
-  const ccMonthlyInterest = ccBillAmount * (ccInterest / 100);
-  const plMonthlyInterest = ccBillAmount * (plInterest / 100);
-  const savingsPerMonth = ccMonthlyInterest - plMonthlyInterest;
-  const savingsPerYear = savingsPerMonth * 12;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-red-50 via-orange-50 to-yellow-50 relative overflow-hidden">
-      {/* Structured Data for SEO - Financial Product Schema */}
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 relative overflow-hidden">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "FinancialProduct",
-            "name": "Credit Card Bill Payment with Personal Loan",
-            "description": "Convert high-interest credit card bills (45% p.a.) to low-interest personal loans (10.25% p.a.). Save up to 35% on interest payments.",
-            "url": "https://kreditscore.com/credit-card-bill-payment",
-            "provider": {
-              "@type": "FinancialService",
-              "name": "KreditScore",
-              "url": "https://kreditscore.com"
+            '@context': 'https://schema.org',
+            '@type': 'FinancialProduct',
+            name: 'Pay Credit Card Bill — Convert to Personal Loan',
+            description:
+              'Convert high-interest credit card dues to a lower-rate personal loan. Indicative savings vs typical credit card APR.',
+            provider: {
+              '@type': 'FinancialService',
+              name: 'KreditScore',
+              url: 'https://www.kreditscore.in',
             },
-            "feesAndCommissionsSpecification": "No hidden charges, transparent processing",
-            "interestRate": {
-              "@type": "QuantitativeValue",
-              "value": "10.25",
-              "unitText": "P.A."
+            category: 'Debt consolidation',
+            offers: {
+              '@type': 'Offer',
+              url: 'https://www.kreditscore.in/credit-card-bill-payment',
             },
-            "annualPercentageRate": "10.25",
-            "offers": {
-              "@type": "Offer",
-              "price": "0",
-              "priceCurrency": "INR",
-              "description": "Convert credit card debt to personal loan at 10.25% interest"
-            }
-          })
-        }}
-      />
-
-      {/* BreadcrumbList Schema */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "BreadcrumbList",
-            "itemListElement": [
-              {
-                "@type": "ListItem",
-                "position": 1,
-                "name": "Home",
-                "item": "https://kreditscore.com"
-              },
-              {
-                "@type": "ListItem",
-                "position": 2,
-                "name": "Loans",
-                "item": "https://kreditscore.com/#loans"
-              },
-              {
-                "@type": "ListItem",
-                "position": 3,
-                "name": "Pay Credit Card Bill",
-                "item": "https://kreditscore.com/credit-card-bill-payment"
-              }
-            ]
-          })
+          }),
         }}
       />
 
       <CustomCursor />
       <Header />
 
-      {/* Animated Background - Floating Credit Cards */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
-        {[...Array(5)].map((_, i) => (
-          <motion.div
-            key={i}
-            animate={{
-              y: [0, -100, 0],
-              x: [0, 50, 0],
-              rotate: [0, 10, -10, 0],
-            }}
-            transition={{
-              duration: 8 + i * 2,
-              repeat: Infinity,
-              ease: "easeInOut",
-              delay: i * 1.5
-            }}
-            className="absolute"
-            style={{
-              left: `${20 + i * 15}%`,
-              top: `${10 + i * 10}%`,
-            }}
-          >
-            <CreditCard className="w-24 h-24 text-red-400" />
-          </motion.div>
-        ))}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <motion.div
+          animate={{ scale: [1, 1.2, 1], rotate: [0, 90, 0], opacity: [0.03, 0.08, 0.03] }}
+          transition={{ duration: 20, repeat: Infinity }}
+          className="absolute top-20 right-20 w-96 h-96 bg-blue-500 rounded-full blur-3xl"
+        />
+        <motion.div
+          animate={{ scale: [1, 1.3, 1], rotate: [0, -90, 0], opacity: [0.03, 0.08, 0.03] }}
+          transition={{ duration: 25, repeat: Infinity }}
+          className="absolute bottom-20 left-20 w-96 h-96 bg-orange-400 rounded-full blur-3xl"
+        />
       </div>
 
-      <div className="pt-[80px] sm:pt-[100px] pb-4 sm:pb-8 px-2 sm:px-4 relative z-10">
-        <div className="max-w-7xl mx-auto">
-
-          {/* Hero Section with Fear + Relief */}
-          <motion.div
-            initial={{ opacity: 0, y: -30 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center mb-6 sm:mb-12"
-          >
-            {/* Danger Badge */}
+      <div className="pt-[100px] md:pt-[120px] pb-[60px] md:pb-[80px] px-3 md:px-4 relative z-10">
+        <div className="max-w-[1400px] mx-auto">
+          <div className="grid lg:grid-cols-[2fr_0.7fr] gap-6 md:gap-8 mb-8 md:mb-12">
             <motion.div
-              animate={{
-                scale: [1, 1.1, 1],
-              }}
-              transition={{
-                duration: 2,
-                repeat: Infinity,
-              }}
-              className="inline-flex items-center gap-1.5 sm:gap-2 bg-gradient-to-r from-red-600 to-orange-600 text-white px-3 py-1.5 sm:px-6 sm:py-3 rounded-full mb-4 sm:mb-6 shadow-lg"
-            >
-              <AlertTriangle className="w-4 h-4 sm:w-6 sm:h-6" />
-              <span className="font-bold text-xs sm:text-lg">CREDIT CARD TRAP!</span>
-            </motion.div>
-
-            <h1 className="text-[15px] leading-tight sm:text-3xl md:text-5xl lg:text-6xl font-bold mb-3 sm:mb-4 px-2">
-              <span className="bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-                Get Freedom from{' '}
-              </span>
-              <span className="text-red-600">
-                Credit Card Debt!
-              </span>
-            </h1>
-
-            <p className="text-[11px] leading-tight sm:text-lg md:text-xl text-gray-700 mb-2 px-2">
-              Convert Your Credit Card Bill to Personal Loan
-            </p>
-            <p className="text-[12px] leading-tight sm:text-2xl md:text-3xl font-bold text-green-600 mb-4 sm:mb-6 px-2">
-              in 2 Minutes @ Starting from 10.25% p.a.*
-            </p>
-
-            {/* Shocking Stats */}
-            <div className="grid grid-cols-3 gap-2 sm:gap-4 max-w-3xl mx-auto px-2">
-              <motion.div
-                whileHover={{ scale: 1.05, y: -5 }}
-                className="bg-white rounded-lg sm:rounded-xl p-2 sm:p-4 shadow-lg border sm:border-2 border-red-200"
-              >
-                <TrendingUp className="w-5 h-5 sm:w-8 sm:h-8 text-red-600 mx-auto mb-1 sm:mb-2" />
-                <p className="text-lg sm:text-3xl font-bold text-red-600">45%</p>
-                <p className="text-[9px] sm:text-sm text-gray-600">Credit Card Interest</p>
-              </motion.div>
-
-              <motion.div
-                whileHover={{ scale: 1.05, y: -5 }}
-                className="bg-white rounded-lg sm:rounded-xl p-2 sm:p-4 shadow-lg border sm:border-2 border-green-200"
-              >
-                <TrendingDown className="w-5 h-5 sm:w-8 sm:h-8 text-green-600 mx-auto mb-1 sm:mb-2" />
-                <p className="text-lg sm:text-3xl font-bold text-green-600">10.25%*</p>
-                <p className="text-[9px] sm:text-sm text-gray-600">Personal Loan Interest</p>
-              </motion.div>
-
-              <motion.div
-                whileHover={{ scale: 1.05, y: -5 }}
-                className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg sm:rounded-xl p-2 sm:p-4 shadow-lg"
-              >
-                <Zap className="w-5 h-5 sm:w-8 sm:h-8 text-white mx-auto mb-1 sm:mb-2" />
-                <p className="text-lg sm:text-3xl font-bold text-white">35%+</p>
-                <p className="text-[9px] sm:text-sm text-white">Interest Saved!</p>
-              </motion.div>
-            </div>
-          </motion.div>
-
-          {/* 3D Credit Card Animation */}
-          <div className="grid lg:grid-cols-3 gap-3 sm:gap-6 mb-8 sm:mb-12">
-            {/* Left - Red Credit Card Danger Box + Why Choose Us Features (Vertical) */}
-            <motion.div
-              initial={{ opacity: 0, x: -30 }}
+              initial={{ opacity: 0, x: -50 }}
               animate={{ opacity: 1, x: 0 }}
-              className="order-2 space-y-2 sm:space-y-4 lg:order-1"
+              transition={{ duration: 0.6 }}
+              className="flex flex-col justify-center"
             >
-              {/* Red Credit Card Danger Box */}
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mb-2 sm:mb-4"
+                animate={floatingAnimation}
+                className="inline-flex items-center gap-1.5 sm:gap-2 bg-gradient-to-r from-orange-500 to-pink-500 text-white px-3 py-1.5 sm:px-4 sm:py-2 md:px-6 rounded-full text-xs sm:text-sm font-semibold mb-4 sm:mb-5 md:mb-6 shadow-lg w-fit"
               >
-                <div className="perspective-1000">
-                  <motion.div
-                    animate={{
-                      rotateY: [0, 15, -15, 0],
-                    }}
-                    transition={{
-                      duration: 6,
-                      repeat: Infinity,
-                      ease: "easeInOut"
-                    }}
-                    className="relative preserve-3d"
-                  >
-                    {/* Credit Card - Front */}
-                    <div className="bg-gradient-to-br from-red-600 via-orange-600 to-red-700 rounded-lg sm:rounded-xl p-2 sm:p-3 shadow-2xl h-20 sm:h-28 relative overflow-hidden">
-                      {/* Card Pattern */}
-                      <div className="absolute inset-0 opacity-10">
-                        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.8),transparent_50%)]" />
-                      </div>
-
-                      <div className="relative z-10">
-                        <div className="flex justify-between items-start mb-1.5 sm:mb-3">
-                          <div className="w-4 h-3 sm:w-6 sm:h-4 bg-yellow-400 rounded-sm" />
-                          <CreditCard className="w-4 h-4 sm:w-6 sm:h-6 text-white opacity-50" />
-                        </div>
-
-                        <div className="mb-1 sm:mb-2">
-                          <p className="text-white text-[10px] sm:text-sm font-mono tracking-wider">
-                            •••• •••• •••• 1234
-                          </p>
-                        </div>
-
-                        <div className="flex justify-between items-end">
-                          <div>
-                            <p className="text-white text-[6px] sm:text-[8px] opacity-70">Card Holder</p>
-                            <p className="text-white text-[8px] sm:text-xs font-semibold">YOUR NAME</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-white text-[6px] sm:text-[8px] opacity-70">Interest Rate</p>
-                            <p className="text-white text-[10px] sm:text-sm font-bold">45% p.a.</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Danger Pulse */}
-                      <motion.div
-                        animate={{
-                          scale: [1, 1.5, 1],
-                          opacity: [0.5, 0, 0.5],
-                        }}
-                        transition={{
-                          duration: 2,
-                          repeat: Infinity,
-                        }}
-                        className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full"
-                      />
-                    </div>
-
-                    {/* Warning Labels */}
-                    <div className="mt-1 sm:mt-2 space-y-1 sm:space-y-1.5">
-                      <div className="flex items-center gap-1 sm:gap-1.5 bg-red-100 border-l sm:border-l-2 border-red-600 p-1 sm:p-2 rounded">
-                        <AlertTriangle className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-red-600 flex-shrink-0" />
-                        <p className="text-[8px] sm:text-[10px] text-red-800 font-semibold">
-                          Paying only minimum? You'll be in debt for 20+ years!
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1 sm:gap-1.5 bg-orange-100 border-l sm:border-l-2 border-orange-600 p-1 sm:p-2 rounded">
-                        <TrendingUp className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-orange-600 flex-shrink-0" />
-                        <p className="text-[8px] sm:text-[10px] text-orange-800 font-semibold">
-                          ₹50,000 debt can become ₹3,00,000+ with minimum payments!
-                        </p>
-                      </div>
-                    </div>
-                  </motion.div>
-                </div>
+                <CreditCard className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="whitespace-nowrap">Pay Credit Card Bill</span>
               </motion.div>
+              <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold mb-2 sm:mb-3 md:mb-4 leading-tight">
+                <span className="text-gray-900">Freedom from </span>
+                <span className="bg-gradient-to-r from-red-700 via-rose-600 to-orange-500 bg-clip-text text-transparent">
+                  Credit Card Debt!
+                </span>
+              </h1>
+              <p className="text-xs sm:text-sm md:text-base lg:text-lg text-gray-600 mb-4 sm:mb-6 md:mb-8">
+                Convert Your Credit Card Bill to Personal Loan
+              </p>
 
-              {/* Why Choose Us Features */}
-              {[
-                {
-                  icon: Shield,
-                  title: "100% Safe & Secure",
-                  desc: "100% RBI Approved lenders with guaranteed privacy",
-                  color: "blue"
-                },
-                {
-                  icon: Zap,
-                  title: "Instant Approval",
-                  desc: "Get approved in 24-48 hours with minimal docs",
-                  color: "orange"
-                },
-                {
-                  icon: CheckCircle,
-                  title: "Zero Hidden Charges",
-                  desc: "Transparent pricing with no surprise fees",
-                  color: "green"
-                }
-              ].map((item, index) => {
-                const Icon = item.icon;
-                return (
-                  <motion.div
-                    key={index}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: (index + 1) * 0.1 }}
-                    whileHover={{ scale: 1.05, x: 10 }}
-                    className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-6 shadow-lg border-l-2 sm:border-l-4 border-blue-500 hover:shadow-2xl transition-all duration-300"
-                  >
-                    <div className="flex items-start gap-2 sm:gap-4">
-                      <div className={`w-8 h-8 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-gradient-to-br ${
-                        item.color === 'blue' ? 'from-blue-500 to-blue-600' :
-                        item.color === 'orange' ? 'from-orange-500 to-orange-600' :
-                        'from-green-500 to-green-600'
-                      } flex items-center justify-center flex-shrink-0`}>
-                        <Icon className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="text-sm sm:text-lg font-bold text-gray-900 mb-1 sm:mb-2">{item.title}</h3>
-                        <p className="text-[10px] sm:text-sm text-gray-600 leading-relaxed">{item.desc}</p>
-                      </div>
-                    </div>
-                  </motion.div>
-                );
-              })}
+              <div className="grid grid-cols-3 gap-1.5 sm:gap-2 md:gap-3 lg:gap-4">
+                <div className="bg-white rounded-lg sm:rounded-xl md:rounded-2xl p-1.5 sm:p-2 md:p-3 lg:p-4 shadow-lg border border-red-100">
+                  <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 lg:w-8 lg:h-8 text-red-600 mb-0.5 sm:mb-1 md:mb-2" />
+                  <p className="text-xs sm:text-sm md:text-base lg:text-lg font-bold text-gray-900 leading-tight">45%</p>
+                  <p className="text-[9px] sm:text-[10px] md:text-xs text-gray-600">Credit Card Interest</p>
+                </div>
+                <div className="bg-white rounded-lg sm:rounded-xl md:rounded-2xl p-1.5 sm:p-2 md:p-3 lg:p-4 shadow-lg border border-emerald-100">
+                  <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 lg:w-8 lg:h-8 text-emerald-600 mb-0.5 sm:mb-1 md:mb-2" />
+                  <p className="text-xs sm:text-sm md:text-base lg:text-lg font-bold text-gray-900 leading-tight">10.25%*</p>
+                  <p className="text-[9px] sm:text-[10px] md:text-xs text-gray-600">Personal Loan Interest</p>
+                </div>
+                <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg sm:rounded-xl md:rounded-2xl p-1.5 sm:p-2 md:p-3 lg:p-4 shadow-lg border border-emerald-400">
+                  <Zap className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 lg:w-8 lg:h-8 text-white mb-0.5 sm:mb-1 md:mb-2" />
+                  <p className="text-xs sm:text-sm md:text-base lg:text-lg font-bold text-white leading-tight">35%+</p>
+                  <p className="text-[9px] sm:text-[10px] md:text-xs text-white/90">Interest Saved</p>
+                </div>
+              </div>
             </motion.div>
 
-            {/* Calculator - Third in mobile, Second on laptop */}
             <motion.div
               initial={{ opacity: 0, x: 50 }}
               animate={{ opacity: 1, x: 0 }}
-              style={{ perspective: '1000px' }}
-              className="order-3 lg:order-2"
+              transition={{ duration: 0.6, delay: 0.2 }}
             >
-              <div className="bg-white rounded-lg sm:rounded-xl shadow-xl p-3 sm:p-6">
-                <div className="text-center mb-3 sm:mb-6">
-                  <Calculator className="w-5 h-5 sm:w-8 sm:h-8 text-blue-600 mx-auto mb-1.5 sm:mb-3" />
-                  <h3 className="text-sm sm:text-lg font-bold mb-1 sm:mb-2">
-                    Calculate Your <span className="text-green-600">SAVINGS!</span>
-                  </h3>
-                  <p className="text-[10px] sm:text-sm text-gray-600">See how much you can save monthly</p>
+              <div className="bg-white rounded-xl sm:rounded-2xl shadow-xl p-3 sm:p-4 md:p-5 lg:p-6 border border-gray-100 relative overflow-hidden max-h-[600px] overflow-y-auto">
+                <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-br from-blue-500/5 to-transparent rounded-full -mr-24 -mt-24" />
+                <div className="relative z-10">
+                  {!submitted ? (
+                    <>
+                      <div className="text-center mb-3 sm:mb-4 md:mb-5 lg:mb-6">
+                        <motion.div
+                          className="relative w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 mx-auto mb-2 sm:mb-3"
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                        >
+                          <motion.div
+                            whileHover={{ scale: 1.05 }}
+                            className="w-full h-full bg-blue-500 rounded-full shadow-lg flex items-center justify-center"
+                          >
+                            <CheckCircle className="w-6 h-6 sm:w-7 sm:h-7 text-white" strokeWidth={2.5} />
+                          </motion.div>
+                        </motion.div>
+                        <motion.h2
+                          className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold mb-1 md:mb-2 leading-tight"
+                          initial={{ opacity: 0, y: -12 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.15 }}
+                        >
+                          <span className="text-[#FF8C00]">Start Your </span>
+                          <span className="text-[#87CEEB]">Loan Journey</span>
+                        </motion.h2>
+                        <motion.p
+                          className="text-[8px] sm:text-[9px] md:text-[10px] text-gray-600 font-medium leading-tight"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ delay: 0.25 }}
+                        >
+                          Pay credit card bill • Convert to lower-rate personal loan • ✨ Instant • 🔒 Secure • 📱 Digital
+                        </motion.p>
+                      </div>
+
+                      {authLoading && (
+                        <p className="text-center text-sm text-gray-500 py-6">Loading…</p>
+                      )}
+                      {!authLoading && !user && (
+                        <FirebasePhoneAuthInline returnPath={pathname} />
+                      )}
+                      {!authLoading && user && (
+                        <form onSubmit={handleSubmit} className="space-y-3">
+                          <ApplicantRelationFields
+                            applicantFor={applicantFor}
+                            onApplicantForChange={setApplicantFor}
+                            applicantName={applicantName}
+                            onApplicantNameChange={setApplicantName}
+                            applicantMobile={applicantMobile}
+                            onApplicantMobileChange={setApplicantMobile}
+                            relationshipNote={relationshipNote}
+                            onRelationshipNoteChange={setRelationshipNote}
+                          />
+                          {applicantFor === 'self' && (
+                            <>
+                              <div>
+                                <label className="block text-[10px] sm:text-xs font-semibold text-gray-700 mb-1">Full Name *</label>
+                                <input
+                                  value={name}
+                                  onChange={handleName}
+                                  placeholder="Enter your full name"
+                                  className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                  required
+                                  autoComplete="name"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] sm:text-xs font-semibold text-gray-700 mb-1">Mobile Number *</label>
+                                <div className="flex gap-2">
+                                  <div className="flex items-center px-2.5 py-2.5 border-2 border-gray-200 rounded-lg bg-gray-50 text-sm font-semibold">
+                                    <Phone className="h-4 w-4 mr-1 text-gray-500" />
+                                    +91
+                                  </div>
+                                  <input
+                                    type="tel"
+                                    value={mobile}
+                                    onChange={(e) => setMobile(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                                    placeholder="10-digit mobile"
+                                    className="flex-1 px-3 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                                    maxLength={10}
+                                    required
+                                    autoComplete="tel"
+                                  />
+                                </div>
+                              </div>
+                            </>
+                          )}
+                          <div>
+                            <label className="block text-[10px] sm:text-xs font-semibold text-gray-700 mb-1">
+                              Total outstanding (₹) *
+                            </label>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              value={ccBillAmount ? formatINR(ccBillAmount) : ''}
+                              onChange={(e) => {
+                                const raw = e.target.value.replace(/\D/g, '');
+                                const n = raw ? Math.min(Number(raw), CALC_MAX) : 0;
+                                setCcBillAmount(n);
+                              }}
+                              className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                              placeholder="e.g. 20,00,000"
+                              required
+                            />
+                            <p className="text-[9px] text-gray-500 mt-1">Max ₹5 Lakh (same range as savings calculator below)</p>
+                          </div>
+                          <motion.button
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            type="submit"
+                            disabled={
+                              loading ||
+                              (applicantFor === 'self' && (!isValidIndianMobile(mobile) || name.trim().length < 2)) ||
+                              (applicantFor === 'other' &&
+                                (!applicantName.trim() || !isValidIndianMobile(applicantMobile)))
+                            }
+                            className="w-full bg-gradient-to-r from-green-600 to-blue-600 text-white py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
+                          >
+                            {loading ? (
+                              <span className="inline-block w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <>
+                                Apply
+                                <ArrowRight className="w-4 h-4" />
+                              </>
+                            )}
+                          </motion.button>
+                          <p className="text-[10px] text-gray-500 text-center">
+                            By continuing you agree to our{' '}
+                            <Link href="/privacy-policy" className="text-blue-600 hover:underline">
+                              Privacy
+                            </Link>
+                          </p>
+                        </form>
+                      )}
+                    </>
+                  ) : (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="text-center py-8"
+                    >
+                      <motion.div
+                        animate={{ scale: [1, 1.08, 1] }}
+                        transition={{ duration: 2, repeat: Infinity, repeatDelay: 1 }}
+                        className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center shadow-xl"
+                      >
+                        <CheckCircle className="w-10 h-10 text-white" strokeWidth={2.5} />
+                      </motion.div>
+                      <h3 className="text-lg sm:text-xl font-bold text-gray-900">Thank you!</h3>
+                      <p className="text-sm text-gray-600 mt-2">We will contact you shortly.</p>
+                    </motion.div>
+                  )}
                 </div>
+              </div>
+            </motion.div>
+          </div>
 
-                <div className="space-y-3 sm:space-y-6">
-                  {/* Amount Display */}
-                  <div className="text-center">
-                    <p className="text-[10px] sm:text-sm text-gray-600 mb-1 sm:mb-2">Credit Card Outstanding</p>
-                    <div className="text-2xl sm:text-4xl font-bold text-gray-900 mb-0.5 sm:mb-1">
-                      ₹{ccBillAmount.toLocaleString('en-IN')}
-                    </div>
+          {/* Scrollable cards — same pattern as instant personal loan */}
+          <div className="mb-8 md:mb-12">
+            <div
+              className="overflow-x-auto scrollbar-hide snap-x snap-mandatory pb-4"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              <div className="flex gap-4 sm:gap-6 md:gap-8 min-w-max px-1">
+                {/* Card 1 — Key features + savings calculator (instant loan style) */}
+                <motion.div
+                  variants={cardVariants}
+                  initial="hidden"
+                  animate="visible"
+                  whileHover={{ scale: 1.02, y: -5, transition: { duration: 0.3 } }}
+                  className="bg-gradient-to-br from-white to-blue-50/30 rounded-2xl sm:rounded-3xl p-4 sm:p-5 md:p-6 shadow-xl hover:shadow-2xl border border-blue-100 relative overflow-hidden snap-center w-[300px] sm:w-[360px] md:w-[400px] lg:w-[420px] flex-shrink-0 transition-all flex flex-col"
+                >
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-2xl flex items-center justify-center mb-3 sm:mb-4 relative z-10">
+                    <Award className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" strokeWidth={2.5} />
                   </div>
+                  <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 mb-1 sm:mb-2">Key Features</h3>
+                  <p className="text-[10px] sm:text-xs md:text-sm text-gray-600 mb-3 sm:mb-4">
+                    Calculate savings when you move card dues to a personal loan
+                  </p>
 
-                  {/* Slider */}
-                  <div className="px-2">
+                  <div className="rounded-xl bg-white/80 border border-blue-100/80 p-3 mb-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Calculator className="w-5 h-5 text-blue-600 shrink-0" strokeWidth={2} />
+                      <p className="text-xs sm:text-sm font-bold text-slate-800">
+                        Outstanding <span className="text-emerald-600">₹{formatINR(ccBillAmount)}</span>
+                      </p>
+                    </div>
                     <input
                       type="range"
-                      min="10000"
-                      max="500000"
-                      step="5000"
-                      value={ccBillAmount}
+                      min={CALC_MIN}
+                      max={CALC_MAX}
+                      step={5000}
+                      value={Math.min(Math.max(ccBillAmount, CALC_MIN), CALC_MAX)}
                       onChange={(e) => setCcBillAmount(Number(e.target.value))}
-                      className="w-full h-2 bg-gradient-to-r from-red-200 via-orange-200 to-green-200 rounded-lg appearance-none cursor-pointer slider"
-                      style={{
-                        background: `linear-gradient(to right, #fee2e2 0%, #fed7aa ${((ccBillAmount - 10000) / (500000 - 10000)) * 100}%, #dcfce7 100%)`
-                      }}
+                      className="cc-savings-slider w-full h-2.5 rounded-full appearance-none cursor-pointer"
                     />
-                    <div className="flex justify-between text-[9px] sm:text-xs text-gray-500 mt-1 sm:mt-2">
+                    <div className="flex justify-between text-[10px] text-gray-400 mt-1.5 font-medium">
                       <span>₹10,000</span>
                       <span>₹5,00,000</span>
                     </div>
                   </div>
 
-                  {/* Comparison Cards */}
-                  <div className="grid grid-cols-2 gap-2 sm:gap-4">
-                    {/* Credit Card */}
-                    <motion.div
-                      whileHover={{ scale: 1.05 }}
-                      className="bg-red-50 p-2 sm:p-4 rounded-lg sm:rounded-xl border sm:border-2 border-red-200"
-                    >
-                      <CreditCard className="w-4 h-4 sm:w-6 sm:h-6 text-red-600 mb-1 sm:mb-2" />
-                      <p className="text-[9px] sm:text-xs text-gray-600 mb-0.5 sm:mb-1">Credit Card</p>
-                      <p className="text-sm sm:text-lg font-bold text-red-600">45% p.a.</p>
-                      <div className="mt-1.5 sm:mt-3 pt-1.5 sm:pt-3 border-t border-red-200">
-                        <p className="text-[8px] sm:text-xs text-gray-600">Monthly Interest</p>
-                        <p className="text-sm sm:text-xl font-bold text-red-600">₹{ccMonthlyInterest.toFixed(0)}</p>
-                      </div>
-                    </motion.div>
-
-                    {/* Personal Loan */}
-                    <motion.div
-                      whileHover={{ scale: 1.05 }}
-                      className="bg-green-50 p-2 sm:p-4 rounded-lg sm:rounded-xl border sm:border-2 border-green-200"
-                    >
-                      <Wallet className="w-4 h-4 sm:w-6 sm:h-6 text-green-600 mb-1 sm:mb-2" />
-                      <p className="text-[9px] sm:text-xs text-gray-600 mb-0.5 sm:mb-1">Personal Loan</p>
-                      <p className="text-sm sm:text-lg font-bold text-green-600">10.25% p.a.*</p>
-                      <div className="mt-1.5 sm:mt-3 pt-1.5 sm:pt-3 border-t border-green-200">
-                        <p className="text-[8px] sm:text-xs text-gray-600">Monthly Interest</p>
-                        <p className="text-sm sm:text-xl font-bold text-green-600">₹{plMonthlyInterest.toFixed(0)}</p>
-                      </div>
-                    </motion.div>
+                  <div className="grid grid-cols-2 gap-2 mb-3">
+                    <div className="rounded-xl bg-rose-50 border border-red-200/80 p-2.5">
+                      <CreditCard className="w-5 h-5 text-red-500 mb-1" strokeWidth={1.75} />
+                      <p className="text-[10px] text-gray-500">Card ~{CC_RATE}% p.a.</p>
+                      <p className="text-sm font-black text-red-600 tabular-nums">₹{formatINR(ccMonthly)}/mo</p>
+                    </div>
+                    <div className="rounded-xl bg-emerald-50 border border-emerald-200/80 p-2.5">
+                      <Wallet className="w-5 h-5 text-emerald-600 mb-1" strokeWidth={1.75} />
+                      <p className="text-[10px] text-gray-500">Loan ~{PL_RATE}%*</p>
+                      <p className="text-sm font-black text-emerald-600 tabular-nums">₹{formatINR(plMonthly)}/mo</p>
+                    </div>
                   </div>
 
-                  {/* Savings Box */}
-                  <motion.div
-                    whileHover={{ scale: 1.02 }}
-                    className="bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg sm:rounded-xl p-3 sm:p-6 text-center"
-                  >
-                    <Zap className="w-5 h-5 sm:w-8 sm:h-8 mx-auto mb-1 sm:mb-2" />
-                    <p className="text-[10px] sm:text-sm font-semibold mb-0.5 sm:mb-1">Your Monthly Savings</p>
-                    <p className="text-2xl sm:text-4xl font-bold mb-1 sm:mb-2">₹{savingsPerMonth.toFixed(0)}</p>
-                    <div className="pt-2 sm:pt-3 border-t border-white/30">
-                      <p className="text-[10px] sm:text-sm opacity-90">Annual Savings</p>
-                      <p className="text-lg sm:text-2xl font-bold">₹{savingsPerYear.toFixed(0)}</p>
-                    </div>
-                  </motion.div>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Green Application Form - First in mobile, Third on laptop */}
-            <motion.div
-              initial={{ opacity: 0, x: 50 }}
-              animate={{ opacity: 1, x: 0 }}
-              style={{ perspective: '1000px' }}
-              className="order-1 lg:order-3"
-            >
-              <motion.div
-                className="relative"
-                style={{ transformStyle: 'preserve-3d' }}
-                whileHover={{ rotateY: 5, rotateX: -5 }}
-                transition={{ duration: 0.3 }}
-              >
-                {/* Credit Card Background with 3D Effect */}
-                <div className="relative bg-gradient-to-br from-green-600 via-emerald-600 to-green-700 rounded-xl sm:rounded-2xl shadow-2xl p-2 sm:p-4 overflow-hidden border sm:border-2 border-white transform-gpu max-w-sm mx-auto">
-                  {/* Card Shine Effect */}
-                  <motion.div
-                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-20"
-                    animate={{
-                      x: ['-100%', '100%'],
-                    }}
-                    transition={{
-                      duration: 3,
-                      repeat: Infinity,
-                      ease: "easeInOut"
-                    }}
-                  />
-
-                  {/* Card Pattern */}
-                  <div className="absolute inset-0 opacity-10">
-                    <div className="absolute top-1 right-1 sm:top-2 sm:right-2 w-8 h-8 sm:w-12 sm:h-12 border sm:border-2 border-white rounded-full" />
-                    <div className="absolute bottom-1 left-1 sm:bottom-2 sm:left-2 w-10 h-10 sm:w-16 sm:h-16 border sm:border-2 border-white rounded-full" />
+                  <div className="rounded-xl bg-[#15803d] px-3 py-3 text-center text-white mb-3">
+                    <Zap className="w-4 h-4 mx-auto mb-1 text-white" strokeWidth={2.5} />
+                    <p className="text-[10px] font-medium text-white/95">Monthly savings</p>
+                    <p className="text-xl sm:text-2xl font-black tabular-nums">₹{formatINR(monthlySave)}</p>
+                    <p className="text-[10px] text-white/85 mt-0.5">Annual ~ ₹{formatINR(annualSave)}</p>
                   </div>
 
-                  {/* Chip Animation */}
-                  <motion.div
-                    className="absolute top-2 left-3 sm:top-3 sm:left-4 w-6 h-5 sm:w-8 sm:h-7 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-md"
-                    animate={{
-                      boxShadow: ['0 0 15px rgba(234,179,8,0.5)', '0 0 30px rgba(234,179,8,0.8)', '0 0 15px rgba(234,179,8,0.5)']
-                    }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                  >
-                    <div className="grid grid-cols-3 gap-0.5 p-0.5 sm:p-1 h-full">
-                      {[...Array(9)].map((_, i) => (
-                        <div key={i} className="bg-yellow-700 rounded-sm" />
-                      ))}
-                    </div>
-                  </motion.div>
+                  <div className="space-y-2 sm:space-y-2.5 mb-4 flex-grow">
+                    {[
+                      { icon: Shield, text: 'Lower rate vs typical card revolving interest' },
+                      { icon: CreditCard, text: 'Single EMI instead of multiple card dues' },
+                      { icon: Zap, text: 'Digital journey — minimal paperwork' },
+                    ].map((item, idx) => (
+                      <div key={idx} className="flex items-center gap-2 sm:gap-2.5">
+                        <div className="w-7 h-7 sm:w-8 sm:h-8 bg-blue-100/60 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <item.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600" />
+                        </div>
+                        <p className="text-[10px] sm:text-xs md:text-sm text-gray-700">{item.text}</p>
+                      </div>
+                    ))}
+                  </div>
 
-                  {/* Contactless Payment Icon */}
-                  <motion.div
-                    className="absolute top-2 right-3 sm:top-3 sm:right-4"
-                    animate={{ rotate: [0, 10, -10, 0] }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                  >
-                    <div className="flex gap-0.5">
-                      <div className="w-1 h-2 sm:w-1.5 sm:h-3 bg-white rounded-full opacity-80" />
-                      <div className="w-1 h-2 sm:w-1.5 sm:h-3 bg-white rounded-full opacity-60" />
-                      <div className="w-1 h-2 sm:w-1.5 sm:h-3 bg-white rounded-full opacity-40" />
-                    </div>
-                  </motion.div>
-
-                  <div className="relative z-10 bg-white rounded-lg sm:rounded-xl shadow-xl p-2 sm:p-4 mt-6 sm:mt-10">
-                {!isSubmitted ? (
-                  <>
-                    <div className="text-center mb-2 sm:mb-4">
-                      <motion.div
-                        className="w-7 h-7 sm:w-10 sm:h-10 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-1 sm:mb-2"
-                        whileHover={{ scale: 1.1, rotate: 360 }}
-                        transition={{ duration: 0.5 }}
-                      >
-                        <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                      </motion.div>
-                      <h2 className="text-sm sm:text-lg font-bold mb-0.5 sm:mb-1">
-                        <span className="text-green-600">Get Relief Now!</span>
-                      </h2>
-                      <p className="text-[10px] sm:text-xs text-gray-600">
-                        Convert to Personal Loan in 2 Minutes
-                      </p>
-                    </div>
-
-                    <AnimatePresence mode="wait">
-                      {!otpSent ? (
-                        <motion.form
-                          key="mobile-form"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          onSubmit={handleSendOTP}
-                          className="space-y-2 sm:space-y-3"
-                        >
-                          <div>
-                            <label className="block text-[10px] sm:text-xs font-semibold text-gray-700 mb-0.5 sm:mb-1">
-                              Full Name *
-                            </label>
-                            <input
-                              type="text"
-                              value={name}
-                              onChange={handleNameChange}
-                              placeholder="Enter your full name"
-                              className="w-full px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm border sm:border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                              required
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-[10px] sm:text-xs font-semibold text-gray-700 mb-0.5 sm:mb-1">
-                              How much Total Outstanding Credit Card? *
-                            </label>
-                            <div className="relative">
-                              <div className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs sm:text-sm font-semibold">
-                                ₹
-                              </div>
-                              <input
-                                type="text"
-                                value={outstandingAmount}
-                                onChange={(e) => {
-                                  const value = e.target.value.replace(/\D/g, '');
-                                  setOutstandingAmount(value);
-                                }}
-                                placeholder="Enter outstanding amount"
-                                className="w-full pl-5 sm:pl-6 pr-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm border sm:border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                                required
-                              />
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className="block text-[10px] sm:text-xs font-semibold text-gray-700 mb-0.5 sm:mb-1">
-                              Mobile Number *
-                            </label>
-                            <div className="flex gap-1 sm:gap-2">
-                              <div className="flex items-center px-1.5 py-1.5 sm:px-2 sm:py-2 text-[10px] sm:text-sm border sm:border-2 border-gray-200 rounded-lg bg-gray-50 font-semibold text-gray-700">
-                                <Phone className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1 text-gray-500" />
-                                +91
-                              </div>
-                              <input
-                                type="tel"
-                                value={mobile}
-                                onChange={(e) => setMobile(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                                placeholder="10-digit mobile"
-                                className="flex-1 px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm border sm:border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                                maxLength={10}
-                                required
-                              />
-                            </div>
-                          </div>
-
-                          <motion.button
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            type="submit"
-                            disabled={!name.trim() || !outstandingAmount.trim() || mobile.length !== 10 || isLoading}
-                            className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white py-2 sm:py-2.5 rounded-lg font-bold text-[11px] sm:text-sm flex items-center justify-center gap-1 sm:gap-2 hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 shadow-lg"
-                          >
-                            {isLoading ? (
-                              <div className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            ) : (
-                              <>
-                                Get Freedom from Credit Card Debt
-                                <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4" />
-                              </>
-                            )}
-                          </motion.button>
-                        </motion.form>
-                      ) : !otpVerified ? (
-                        <motion.form
-                          key="otp-form"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          onSubmit={handleVerifyOTP}
-                          className="space-y-4"
-                        >
-                          <div className="bg-green-50 border-2 border-green-200 rounded-lg p-3">
-                            <p className="text-sm text-green-800 text-center font-semibold">
-                              OTP sent to +91 {mobile}
-                            </p>
-                          </div>
-
-                          <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">
-                              Enter OTP
-                            </label>
-                            <input
-                              type="text"
-                              value={otp}
-                              onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                              placeholder="0 0 0 0"
-                              className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 text-center text-3xl tracking-widest font-bold"
-                              maxLength={4}
-                              required
-                            />
-                          </div>
-
-                          <motion.button
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            type="submit"
-                            disabled={otp.length !== 4 || isLoading}
-                            className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white py-2.5 sm:py-3 rounded-lg font-bold text-sm sm:text-base hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 shadow-lg flex items-center justify-center gap-2"
-                          >
-                            {isLoading ? (
-                              <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            ) : (
-                              <>
-                                Verify & Continue
-                                <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                              </>
-                            )}
-                          </motion.button>
-                        </motion.form>
-                      ) : (
-                        /* Multi-step Form After OTP Verification */
-                        <motion.div
-                          key="application-form"
-                          initial={{ opacity: 0, scale: 0.95 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.95 }}
-                        >
-                          {/* Step Indicator */}
-                          <div className="flex items-center justify-center gap-2 mb-3 sm:mb-4">
-                            <div className={`w-2 h-2 rounded-full ${formStep === 1 ? 'bg-green-600' : 'bg-gray-300'}`} />
-                            <div className={`w-2 h-2 rounded-full ${formStep === 2 ? 'bg-green-600' : 'bg-gray-300'}`} />
-                          </div>
-
-                          <form onSubmit={handleFormSubmit} className="space-y-2 sm:space-y-3">
-                            {formStep === 1 && (
-                              <motion.div
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                className="space-y-2 sm:space-y-2.5"
-                              >
-                                <h3 className="text-xs sm:text-sm font-bold text-green-600 mb-2 sm:mb-3">Personal Details</h3>
-
-                                <div>
-                                  <label className="block text-[10px] sm:text-xs font-semibold text-gray-700 mb-0.5 sm:mb-1">PAN Card *</label>
-                                  <input
-                                    type="text"
-                                    name="panCard"
-                                    value={formData.panCard}
-                                    onChange={handleInputChange}
-                                    placeholder="ABCDE1234F"
-                                    className="w-full px-2 py-1.5 sm:px-3 sm:py-2 border sm:border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-xs sm:text-sm uppercase"
-                                    maxLength={10}
-                                    required
-                                    autoComplete="off"
-                                  />
-                                </div>
-
-                                <div>
-                                  <label className="block text-[10px] sm:text-xs font-semibold text-gray-700 mb-0.5 sm:mb-1">Date of Birth (DD/MM/YYYY) *</label>
-                                  <input
-                                    type="text"
-                                    name="dob"
-                                    value={formData.dob}
-                                    onChange={handleDateChange}
-                                    placeholder="DD/MM/YYYY"
-                                    className="w-full px-2 py-1.5 sm:px-3 sm:py-2 border sm:border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-xs sm:text-sm"
-                                    maxLength={10}
-                                    required
-                                    autoComplete="off"
-                                  />
-                                  {formData.dob && !validateAge(formData.dob) && formData.dob.length === 10 && (
-                                    <p className="text-[9px] sm:text-[10px] text-red-600 mt-0.5 sm:mt-1">Age must be between 18 and 100 years</p>
-                                  )}
-                                </div>
-
-                                <div>
-                                  <label className="block text-[10px] sm:text-xs font-semibold text-gray-700 mb-0.5 sm:mb-1">Company Name *</label>
-                                  <input
-                                    type="text"
-                                    name="companyName"
-                                    value={formData.companyName}
-                                    onChange={handleInputChange}
-                                    placeholder="Type company name"
-                                    className="w-full px-2 py-1.5 sm:px-3 sm:py-2 border sm:border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-xs sm:text-sm"
-                                    required
-                                    autoComplete="off"
-                                  />
-                                </div>
-
-                                <div>
-                                  <label className="block text-[10px] sm:text-xs font-semibold text-gray-700 mb-0.5 sm:mb-1">Net Take Home Salary *</label>
-                                  <input
-                                    type="text"
-                                    name="netSalary"
-                                    value={formData.netSalary}
-                                    onChange={handleInputChange}
-                                    placeholder="₹ Monthly salary"
-                                    className="w-full px-2 py-1.5 sm:px-3 sm:py-2 border sm:border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-xs sm:text-sm"
-                                    required
-                                    autoComplete="off"
-                                  />
-                                </div>
-
-                                <button
-                                  type="button"
-                                  onClick={() => setFormStep(2)}
-                                  className="w-full bg-green-600 text-white py-2 sm:py-2.5 rounded-lg font-semibold text-xs sm:text-sm hover:bg-green-700 transition-colors"
-                                >
-                                  Next Step
-                                </button>
-                              </motion.div>
-                            )}
-
-                            {formStep === 2 && (
-                              <motion.div
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                className="space-y-2 sm:space-y-2.5"
-                              >
-                                <h3 className="text-xs sm:text-sm font-bold text-green-600 mb-2 sm:mb-3">Current Address</h3>
-
-                                <div>
-                                  <label className="block text-[10px] sm:text-xs font-semibold text-gray-700 mb-0.5 sm:mb-1">Current Address *</label>
-                                  <input
-                                    type="text"
-                                    name="currentAddress"
-                                    value={formData.currentAddress}
-                                    onChange={handleInputChange}
-                                    placeholder="Flat/House No., Building Name"
-                                    className="w-full px-2 py-1.5 sm:px-3 sm:py-2 border sm:border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-xs sm:text-sm"
-                                    required
-                                    autoComplete="off"
-                                  />
-                                </div>
-
-                                <div>
-                                  <label className="block text-[10px] sm:text-xs font-semibold text-gray-700 mb-0.5 sm:mb-1">City *</label>
-                                  <input
-                                    type="text"
-                                    name="currentCity"
-                                    value={formData.currentCity}
-                                    onChange={handleInputChange}
-                                    placeholder="Enter city"
-                                    className="w-full px-2 py-1.5 sm:px-3 sm:py-2 border sm:border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-xs sm:text-sm"
-                                    required
-                                    autoComplete="off"
-                                  />
-                                </div>
-
-                                <div>
-                                  <label className="block text-[10px] sm:text-xs font-semibold text-gray-700 mb-0.5 sm:mb-1">State *</label>
-                                  <input
-                                    type="text"
-                                    name="currentState"
-                                    value={formData.currentState}
-                                    onChange={handleInputChange}
-                                    placeholder="Enter state"
-                                    className="w-full px-2 py-1.5 sm:px-3 sm:py-2 border sm:border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-xs sm:text-sm"
-                                    required
-                                    autoComplete="off"
-                                  />
-                                </div>
-
-                                <div>
-                                  <label className="block text-[10px] sm:text-xs font-semibold text-gray-700 mb-0.5 sm:mb-1">Pincode *</label>
-                                  <input
-                                    type="text"
-                                    name="currentPincode"
-                                    value={formData.currentPincode}
-                                    onChange={(e) => {
-                                      const value = e.target.value.replace(/\D/g, '').slice(0, 6);
-                                      setFormData(prev => ({ ...prev, currentPincode: value }));
-                                    }}
-                                    placeholder="6-digit pincode"
-                                    className="w-full px-2 py-1.5 sm:px-3 sm:py-2 border sm:border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-xs sm:text-sm"
-                                    maxLength={6}
-                                    required
-                                    autoComplete="off"
-                                  />
-                                </div>
-
-                                <div className="flex gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => setFormStep(1)}
-                                    className="w-1/3 bg-gray-200 text-gray-700 py-2 sm:py-2.5 rounded-lg font-semibold text-xs sm:text-sm hover:bg-gray-300 transition-colors"
-                                  >
-                                    Back
-                                  </button>
-                                  <motion.button
-                                    whileHover={{ scale: 1.02 }}
-                                    whileTap={{ scale: 0.98 }}
-                                    type="submit"
-                                    className="w-2/3 bg-gradient-to-r from-green-600 to-emerald-600 text-white py-2 sm:py-2.5 rounded-lg font-bold text-xs sm:text-sm hover:from-green-700 hover:to-emerald-700 shadow-lg flex items-center justify-center gap-1 sm:gap-2"
-                                  >
-                                    Submit Application
-                                    <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4" />
-                                  </motion.button>
-                                </div>
-                              </motion.div>
-                            )}
-                          </form>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </>
-                ) : (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="text-center py-8"
-                  >
+                  <div className="relative h-2 bg-blue-100 rounded-full overflow-hidden mt-auto">
                     <motion.div
-                      animate={{ scale: [1, 1.2, 1] }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                      className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center shadow-2xl"
-                    >
-                      <PartyPopper className="w-12 h-12 text-white" />
-                    </motion.div>
+                      initial={{ width: 0 }}
+                      animate={{ width: '100%' }}
+                      transition={{ duration: 1.5, delay: 0.5 }}
+                      className="absolute top-0 left-0 h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full"
+                    />
+                  </div>
+                </motion.div>
 
-                    <h3 className="text-2xl font-bold mb-3 text-green-600">
-                      Welcome to Freedom!
-                    </h3>
-                    <p className="text-gray-600 mb-6">
-                      Our team will contact you within 2 hours to help you get rid of high Credit Card interest!
-                    </p>
+                {/* Card 2 — Eligibility (instant loan style) */}
+                <motion.div
+                  variants={cardVariants}
+                  initial="hidden"
+                  animate="visible"
+                  transition={{ delay: 0.1 }}
+                  whileHover={{ scale: 1.02, y: -5, transition: { duration: 0.3 } }}
+                  className="bg-gradient-to-br from-white to-green-50/30 rounded-2xl sm:rounded-3xl p-4 sm:p-5 md:p-6 shadow-xl hover:shadow-2xl border border-green-100 snap-center w-[300px] sm:w-[360px] md:w-[400px] lg:w-[420px] flex-shrink-0 transition-all flex flex-col"
+                >
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-100 rounded-2xl flex items-center justify-center mb-3 sm:mb-4 relative z-10">
+                    <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" strokeWidth={2.5} />
+                  </div>
+                  <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 mb-1 sm:mb-2">Eligibility Criteria</h3>
+                  <p className="text-[10px] sm:text-xs md:text-sm text-gray-600 mb-4 sm:mb-5">
+                    Salaried or self-employed with stable income and healthy credit profile
+                  </p>
 
-                    <div className="bg-green-50 p-4 rounded-lg">
-                      <p className="text-sm font-semibold text-green-800">Application ID</p>
-                      <p className="text-xl font-bold text-gray-800">CCBP{Math.floor(Math.random() * 1000000)}</p>
+                  <div className="flex-grow space-y-3 sm:space-y-4 mb-4 sm:mb-5">
+                    <div>
+                      <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
+                        <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-600" />
+                        <h4 className="text-xs sm:text-sm font-bold text-gray-900">Who can apply</h4>
+                      </div>
+                      <div className="space-y-1.5 sm:space-y-2">
+                        {['Salaried or stable income', 'Valid PAN & address proof', 'Credit card statements for review'].map((item, idx) => (
+                          <div key={idx} className="flex items-center gap-1.5 sm:gap-2">
+                            <CheckCircle className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-green-600 flex-shrink-0" />
+                            <span className="text-[10px] sm:text-xs md:text-sm text-gray-700">{item}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </motion.div>
-                )}
-              </div>
+                    <div>
+                      <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
+                        <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-600" />
+                        <h4 className="text-xs sm:text-sm font-bold text-gray-900">Typical age</h4>
+                      </div>
+                      <div className="space-y-1.5 sm:space-y-2">
+                        {['21 years and above', 'Below 58 years at application'].map((item, idx) => (
+                          <div key={idx} className="flex items-center gap-1.5 sm:gap-2">
+                            <CheckCircle className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-green-600 flex-shrink-0" />
+                            <span className="text-[10px] sm:text-xs md:text-sm text-gray-700">{item}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
 
-              {/* Card Brand Logo */}
-              <div className="absolute bottom-3 right-4 sm:bottom-6 sm:right-8 text-white font-bold text-sm sm:text-xl tracking-wider">
-                KreditScore
+                  <div className="relative h-2 bg-green-100 rounded-full overflow-hidden mt-auto">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: '100%' }}
+                      transition={{ duration: 1.5, delay: 0.6 }}
+                      className="absolute top-0 left-0 h-full bg-gradient-to-r from-green-500 to-green-600 rounded-full"
+                    />
+                  </div>
+                </motion.div>
+
+                {/* Card 3 — Documents (instant loan style) */}
+                <motion.div
+                  variants={cardVariants}
+                  initial="hidden"
+                  animate="visible"
+                  transition={{ delay: 0.2 }}
+                  whileHover={{ scale: 1.02, y: -5, transition: { duration: 0.3 } }}
+                  className="bg-gradient-to-br from-white to-orange-50/30 rounded-2xl sm:rounded-3xl p-4 sm:p-5 md:p-6 shadow-xl hover:shadow-2xl border border-orange-100 snap-center w-[300px] sm:w-[360px] md:w-[400px] lg:w-[420px] flex-shrink-0 transition-all flex flex-col"
+                >
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-orange-100 rounded-2xl flex items-center justify-center mb-3 sm:mb-4 relative z-10">
+                    <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-orange-600" strokeWidth={2.5} />
+                  </div>
+                  <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 mb-1 sm:mb-2">Required Documents</h3>
+                  <p className="text-[10px] sm:text-xs md:text-sm text-gray-600 mb-4 sm:mb-5">
+                    Identity, address, card & bank proof for faster processing
+                  </p>
+
+                  <div className="space-y-3 sm:space-y-3.5 mb-4 sm:mb-5 flex-grow">
+                    <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                      <div>
+                        <h4 className="text-xs sm:text-sm font-bold text-gray-900 mb-1.5 sm:mb-2">Identity Proof</h4>
+                        <ul className="space-y-1 sm:space-y-1.5">
+                          {['Passport', 'Voter ID', 'Driving License', 'PAN Card'].map((doc, idx) => (
+                            <li key={idx} className="flex items-start gap-1.5 text-[10px] sm:text-xs md:text-sm text-gray-700">
+                              <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-orange-500 rounded-full flex-shrink-0 mt-1.5" />
+                              <span className="leading-tight">{doc}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div>
+                        <h4 className="text-xs sm:text-sm font-bold text-gray-900 mb-1.5 sm:mb-2">Address Proof</h4>
+                        <ul className="space-y-1 sm:space-y-1.5">
+                          {['Aadhaar Card', 'Piped Gas Bill', 'Electricity Bill'].map((doc, idx) => (
+                            <li key={idx} className="flex items-start gap-1.5 text-[10px] sm:text-xs md:text-sm text-gray-700">
+                              <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-orange-500 rounded-full flex-shrink-0 mt-1.5" />
+                              <span className="leading-tight">{doc}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="text-xs sm:text-sm font-bold text-gray-900 mb-1.5 sm:mb-2">Other Documents</h4>
+                      <ul className="space-y-1 sm:space-y-1.5">
+                        {['Last 3 months credit card statements', 'Bank statements (3 months)', 'Salary slips if salaried'].map((doc, idx) => (
+                          <li key={idx} className="flex items-start gap-1.5 text-[10px] sm:text-xs md:text-sm text-gray-700">
+                            <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-orange-500 rounded-full flex-shrink-0 mt-1.5" />
+                            <span className="leading-tight">{doc}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+
+                  <div className="relative h-2 bg-orange-100 rounded-full overflow-hidden mt-auto">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: '100%' }}
+                      transition={{ duration: 1.5, delay: 0.7 }}
+                      className="absolute top-0 left-0 h-full bg-gradient-to-r from-orange-500 to-orange-600 rounded-full"
+                    />
+                  </div>
+                </motion.div>
               </div>
             </div>
-              </motion.div>
-            </motion.div>
+            <div className="flex justify-center gap-2 mt-6">
+              <motion.div
+                animate={{ scale: [1, 1.2, 1] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+                className="w-2.5 h-2.5 rounded-full bg-blue-600"
+              />
+              <div className="w-2.5 h-2.5 rounded-full bg-gray-300" />
+              <div className="w-2.5 h-2.5 rounded-full bg-gray-300" />
+            </div>
           </div>
 
+          <p className="text-center text-[10px] sm:text-xs text-gray-500 flex items-center justify-center gap-1 mb-6">
+            <Shield className="w-3 h-3" />
+            *Rates are indicative. Final offer depends on lender policy and your profile.
+          </p>
         </div>
       </div>
 
-      {/* FAQPage Schema for SEO */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "FAQPage",
-            "mainEntity": [
-              {
-                "@type": "Question",
-                "name": "Can I pay my credit card bill with a personal loan?",
-                "acceptedAnswer": {
-                  "@type": "Answer",
-                  "text": "Yes! You can convert your high-interest credit card bill (45% p.a.) into a low-interest personal loan (10.25% p.a.) and save up to 35% on interest payments. This is called credit card debt consolidation."
-                }
-              },
-              {
-                "@type": "Question",
-                "name": "Why is paying only the minimum payment on credit cards bad?",
-                "acceptedAnswer": {
-                  "@type": "Answer",
-                  "text": "Paying only the minimum payment (usually 5% of outstanding) means you'll be paying 45% interest on the remaining 95% of your bill. This debt trap can take 20+ years to clear and cost you lakhs in interest charges."
-                }
-              },
-              {
-                "@type": "Question",
-                "name": "How much can I save by converting credit card debt to personal loan?",
-                "acceptedAnswer": {
-                  "@type": "Answer",
-                  "text": "On a ₹50,000 credit card bill, you can save approximately ₹1,450 per month or ₹17,400 per year by converting to a personal loan at 10.25% interest instead of paying 45% credit card interest."
-                }
-              },
-              {
-                "@type": "Question",
-                "name": "What is the interest rate difference between credit card and personal loan?",
-                "acceptedAnswer": {
-                  "@type": "Answer",
-                  "text": "Credit cards typically charge 45% p.a. interest on outstanding balances, while personal loans are available at 10.25-14.4% p.a. This is a massive 35% difference in interest rates."
-                }
-              },
-              {
-                "@type": "Question",
-                "name": "Is it safe to convert credit card bill to personal loan?",
-                "acceptedAnswer": {
-                  "@type": "Answer",
-                  "text": "Yes, it's completely safe and financially smart. By converting to a personal loan, you get a fixed EMI, lower interest rate, and a clear debt-free timeline. No hidden charges, 100% transparent process."
-                }
-              },
-              {
-                "@type": "Question",
-                "name": "How fast can I get a personal loan to pay credit card bill?",
-                "acceptedAnswer": {
-                  "@type": "Answer",
-                  "text": "With KreditScore, you can get instant approval in minutes. Complete the online application, verify your OTP, and receive funds directly in your bank account within 24 hours."
-                }
-              }
-            ]
-          })
-        }}
-      />
-
-      <footer className="bg-gradient-to-r from-gray-900 to-gray-800 text-white py-4 sm:py-6 text-center relative z-10">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4">
+      <footer className="bg-gradient-to-r from-gray-900 to-gray-800 text-white py-6 md:py-8 text-center relative z-10">
+        <div className="max-w-7xl mx-auto px-3 md:px-4">
           <p className="text-xs sm:text-sm">© 2024 KreditScore. All rights reserved.</p>
-          <p className="text-[10px] sm:text-xs text-gray-400 mt-1 sm:mt-2">Stop losing money to high Credit Card interest today!</p>
+          <p className="text-[10px] sm:text-xs text-gray-400 mt-1 md:mt-2">Secure • Fast • Trusted</p>
         </div>
       </footer>
     </div>

@@ -1,12 +1,14 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import Header from '@/components/Header';
 import ComingSoonModal from '@/components/ComingSoonModal';
 import LoanApplicationForm from '@/components/LoanApplicationFormImproved';
 import CustomCursor from '@/components/CustomCursor';
 import CompanyCategoryModal from '@/components/CompanyCategoryModal';
+import Footer from '@/components/Footer';
+import { captureLead } from '@/lib/leadCapture';
 import {
   ChevronRight,
   Shield,
@@ -27,8 +29,6 @@ import {
   Calculator,
   Star,
   Smartphone,
-  Mail,
-  MapPin,
   User
 } from 'lucide-react';
 
@@ -61,6 +61,7 @@ interface Reason {
 }
 
 export default function KreditScoreLanding() {
+  const shouldReduceMotion = useReducedMotion();
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedFeature, setSelectedFeature] = useState('');
@@ -72,64 +73,28 @@ export default function KreditScoreLanding() {
   // Company Category Modal state
   const [isCompanyCategoryOpen, setIsCompanyCategoryOpen] = useState(false);
 
-  // Hero Form state (small 4-step form)
+  // Hero Form state (small 2-step form)
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [showMobileScore, setShowMobileScore] = useState(false);
+  const [animatedScore, setAnimatedScore] = useState(600);
+  const [isHeroAutoSlidePaused, setIsHeroAutoSlidePaused] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     mobile: '',
-    loanAmount: '',
-    address: '',
     pan: '',
-    dob: '',
-    companyName: '',
-    salary: ''
+    salary: '',
+    loanAmount: '',
+    address: ''
   });
-  const [cityInput, setCityInput] = useState('');
-  const [companyInput, setCompanyInput] = useState('');
-  const [showCitySuggestions, setShowCitySuggestions] = useState(false);
-  const [showCompanySuggestions, setShowCompanySuggestions] = useState(false);
 
-  // Sample data for autocomplete
-  const indianCities = ['Mumbai', 'Delhi', 'Bangalore', 'Hyderabad', 'Chennai', 'Kolkata', 'Pune', 'Ahmedabad', 'Jaipur', 'Surat'];
-  const indianCompanies = ['TCS', 'Infosys', 'Wipro', 'HCL', 'Tech Mahindra', 'Reliance', 'HDFC Bank', 'ICICI Bank', 'Tata Motors', 'Mahindra'];
-
-  const filteredCities = cityInput
-    ? indianCities.filter(city => city.toLowerCase().includes(cityInput.toLowerCase()))
-    : [];
-
-  const filteredCompanies = companyInput
-    ? indianCompanies.filter(company => company.toLowerCase().includes(companyInput.toLowerCase()))
-    : [];
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleCityInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setCityInput(e.target.value);
-    setShowCitySuggestions(true);
-  };
-
-  const handleCitySelect = (city: string) => {
-    setCityInput(city);
-    setFormData({ ...formData, address: city });
-    setShowCitySuggestions(false);
-  };
-
-  const handleCompanyInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setCompanyInput(e.target.value);
-    setShowCompanySuggestions(true);
-  };
-
-  const handleCompanySelect = (company: string) => {
-    setCompanyInput(company);
-    setFormData({ ...formData, companyName: company });
-    setShowCompanySuggestions(false);
-  };
-
   const handleNext = () => {
-    if (currentStep < 4) setCurrentStep(currentStep + 1);
+    if (currentStep < 2) setCurrentStep(currentStep + 1);
   };
 
   const handlePrevious = () => {
@@ -138,18 +103,70 @@ export default function KreditScoreLanding() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!/^\d{10}$/.test(formData.mobile)) {
+      alert('Please enter a valid 10-digit mobile number.');
+      return;
+    }
+    if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(formData.pan.toUpperCase())) {
+      alert('Please enter a valid PAN number (e.g. ABCDE1234F).');
+      return;
+    }
+    if (!formData.salary || Number(formData.salary) < 15000) {
+      alert('Monthly salary should be at least ₹15,000.');
+      return;
+    }
+
+    captureLead({
+      source: 'hero_form',
+      name: formData.name,
+      mobile: formData.mobile,
+      pan: formData.pan,
+      salary: formData.salary
+    });
+
     setIsSubmitted(true);
     setTimeout(() => {
-      setIsSubmitted(false);
-      setCurrentStep(1);
-      setFormData({
-        name: '', mobile: '', loanAmount: '', address: '',
-        pan: '', dob: '', companyName: '', salary: ''
-      });
-      setCityInput('');
-      setCompanyInput('');
-    }, 3000);
+      resetHeroForm();
+    }, 2500);
   };
+
+  const resetHeroForm = () => {
+    setIsSubmitted(false);
+    setCurrentStep(1);
+    setFormData({
+      name: '', mobile: '', pan: '', salary: '', loanAmount: '', address: ''
+    });
+  };
+
+  const isStepOneValid = formData.name.trim().length >= 3 && /^\d{10}$/.test(formData.mobile);
+  const isStepTwoValid =
+    /^[A-Z]{5}[0-9]{4}[A-Z]$/.test(formData.pan.toUpperCase()) && Number(formData.salary) >= 15000;
+  const scoreProgress = Math.min(Math.max((animatedScore - 600) / (786 - 600), 0), 1);
+  const scoreHue = 0 + scoreProgress * 120; // 0=red, 120=green
+  const scoreColor = `hsl(${scoreHue}, 85%, 48%)`;
+
+  useEffect(() => {
+    if (isHeroAutoSlidePaused) return;
+    const autoSwitch = setInterval(() => {
+      if (window.innerWidth < 1024) {
+        setShowMobileScore((prev) => !prev);
+      }
+    }, 3200);
+    return () => clearInterval(autoSwitch);
+  }, [isHeroAutoSlidePaused]);
+
+  useEffect(() => {
+    let value = 600;
+    setAnimatedScore(600);
+    const scoreTimer = setInterval(() => {
+      value += 1;
+      setAnimatedScore(value);
+      if (value >= 786) {
+        clearInterval(scoreTimer);
+      }
+    }, 15);
+    return () => clearInterval(scoreTimer);
+  }, []);
 
   const handleFeatureClick = (featureName: string) => {
     setSelectedFeature(featureName);
@@ -246,8 +263,8 @@ export default function KreditScoreLanding() {
     },
     {
       icon: Award,
-      title: "Teacher Loan",
-      features: ["Zero PF", "Low interest rates"],
+      title: "Government Employee Loan",
+      features: ["Exclusive for Govt staff", "Low interest rates"],
       color: "from-violet-500 to-violet-600"
     }
   ];
@@ -327,8 +344,8 @@ export default function KreditScoreLanding() {
             "@type": "FinancialService",
             "name": "KreditScore",
             "alternateName": "Kredit Score",
-            "url": "https://kreditscore.com",
-            "logo": "https://kreditscore.com/logo.png",
+            "url": "https://www.kreditscore.in",
+            "logo": "https://www.kreditscore.in/logo.png",
             "description": "KreditScore provides instant personal loans, pre-approved loans, and financial services with quick approval and low interest rates. Get loans from ₹50,000 to ₹25 lakh with minimal documentation.",
             "address": {
               "@type": "PostalAddress",
@@ -340,7 +357,7 @@ export default function KreditScoreLanding() {
             },
             "contactPoint": {
               "@type": "ContactPoint",
-              "telephone": "+91-XXXXXXXXXX",
+              "telephone": "+91-9811195111",
               "contactType": "Customer Service",
               "areaServed": "IN",
               "availableLanguage": ["English", "Hindi"]
@@ -414,19 +431,19 @@ export default function KreditScoreLanding() {
                 opacity: { duration: 0.8 },
                 x: { duration: 0.8 }
               }}
-              className="w-full"
+              className={`w-full min-w-0 ${showMobileScore ? 'hidden lg:block' : 'block'}`}
+              onClick={() => setIsHeroAutoSlidePaused(true)}
+              onFocusCapture={() => setIsHeroAutoSlidePaused(true)}
             >
               {/* Subtitle */}
               <p className="text-center lg:text-left text-[10px] text-[#64748b] mb-1.5 leading-[1.3]">
                 100% FREE | No Hidden Charges | Instant Results | Trusted by Millions
               </p>
 
-              {/* Form Card - 4 Step Form */}
+              {/* Form Card - 2 Step Form */}
               <motion.div
-                animate={{
-                  rotate: [-0.5, 0.5, -0.5]
-                }}
-                transition={{
+                animate={shouldReduceMotion ? { rotate: 0 } : { rotate: [-0.5, 0.5, -0.5] }}
+                transition={shouldReduceMotion ? undefined : {
                   rotate: { duration: 4, repeat: Infinity, ease: "easeInOut" }
                 }}
                 style={{ transformOrigin: 'top center', willChange: 'transform' }}
@@ -435,7 +452,7 @@ export default function KreditScoreLanding() {
                 <div className="bg-gradient-to-br from-[#87CEEB] to-[#5FB8E8] rounded-lg p-2 shadow-[0_4px_12px_rgba(135,206,235,0.3)]">
                   {/* Progress Indicator */}
                   <div className="flex justify-center gap-1 mb-2">
-                    {[1, 2, 3, 4].map((step) => (
+                    {[1, 2].map((step) => (
                       <div
                         key={step}
                         className={`h-1 flex-1 rounded-full transition-all ${
@@ -508,15 +525,14 @@ export default function KreditScoreLanding() {
                           transition={{ delay: 0.5, duration: 0.4 }}
                           className="text-white/90 text-sm px-4"
                         >
-                          Your application has been submitted successfully. We'll get back to you soon!
+                          Submitted successfully. Our team will call you shortly.
                         </motion.p>
                       </motion.div>
                     </motion.div>
                   ) : (
                     /* Form */
-                    <form onSubmit={currentStep === 4 ? handleSubmit : (e) => { e.preventDefault(); handleNext(); }}>
+                    <form onSubmit={currentStep === 2 ? handleSubmit : (e) => { e.preventDefault(); handleNext(); }}>
                       {/* Step 1: Name & Mobile */}
-                      {currentStep === 1 && (
                       <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -524,13 +540,16 @@ export default function KreditScoreLanding() {
                         transition={{ duration: 0.3, ease: "easeOut" }}
                         className="space-y-0.5"
                       >
+                        {currentStep === 1 && (
+                        <>
                         <div className="mb-0.5">
                           <input
                             type="text"
                             name="name"
                             value={formData.name}
                             onChange={handleInputChange}
-                            placeholder="Enter Your Name"
+                            placeholder="Your Name (As per PAN Card)"
+                            autoComplete="name"
                             className="w-full px-2 py-1.5 border-0 rounded text-[12px] focus:outline-none focus:shadow-[0_0_0_2px_rgba(255,255,255,0.5)] transition-shadow"
                             required
                           />
@@ -540,148 +559,59 @@ export default function KreditScoreLanding() {
                             type="tel"
                             name="mobile"
                             value={formData.mobile}
-                            onChange={handleInputChange}
-                            placeholder="Enter Mobile Number"
+                            onChange={(e) => {
+                              const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 10);
+                              setFormData({ ...formData, mobile: digitsOnly });
+                            }}
+                            placeholder="Mobile Number (10 Digit)"
+                            inputMode="numeric"
+                            autoComplete="tel-national"
                             className="w-full px-2 py-1.5 border-0 rounded text-[12px] focus:outline-none focus:shadow-[0_0_0_2px_rgba(255,255,255,0.5)] transition-shadow"
                             pattern="[0-9]{10}"
+                            maxLength={10}
                             required
                           />
                         </div>
-                      </motion.div>
-                    )}
-
-                    {/* Step 2: Loan Amount & Address */}
-                    {currentStep === 2 && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        transition={{ duration: 0.3, ease: "easeOut" }}
-                        className="space-y-0.5"
-                      >
-                        <div className="mb-0.5">
-                          <input
-                            type="number"
-                            name="loanAmount"
-                            value={formData.loanAmount}
-                            onChange={handleInputChange}
-                            placeholder="Loan Amount"
-                            className="w-full px-2 py-1.5 border-0 rounded text-[12px] focus:outline-none focus:shadow-[0_0_0_2px_rgba(255,255,255,0.5)] transition-shadow"
-                            required
-                          />
-                        </div>
-                        <div className="mb-0.5 relative city-autocomplete">
-                          <input
-                            type="text"
-                            value={cityInput}
-                            onChange={handleCityInputChange}
-                            placeholder="Enter Your City"
-                            className="w-full px-2 py-1.5 border-0 rounded text-[12px] focus:outline-none focus:shadow-[0_0_0_2px_rgba(255,255,255,0.5)] transition-shadow"
-                            required
-                            onFocus={() => cityInput.length > 0 && setShowCitySuggestions(true)}
-                          />
-
-                          {/* City Dropdown */}
-                          {showCitySuggestions && filteredCities.length > 0 && (
-                            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                              {filteredCities.map((city, index) => (
-                                <div
-                                  key={index}
-                                  onClick={() => handleCitySelect(city)}
-                                  className="px-3 py-2 text-[12px] text-gray-800 hover:bg-gradient-to-r hover:from-[#FF8C00]/10 hover:to-[#87CEEB]/10 cursor-pointer transition-colors"
-                                >
-                                  {city}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </motion.div>
-                    )}
-
-                    {/* Step 3: PAN & DOB */}
-                    {currentStep === 3 && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        transition={{ duration: 0.3, ease: "easeOut" }}
-                        className="space-y-0.5"
-                      >
+                        </>
+                        )}
+                        {currentStep === 2 && (
+                        <>
                         <div className="mb-0.5">
                           <input
                             type="text"
                             name="pan"
                             value={formData.pan}
-                            onChange={handleInputChange}
-                            placeholder="PAN Number"
+                            onChange={(e) => {
+                              const panValue = e.target.value.toUpperCase();
+                              setFormData({ ...formData, pan: panValue });
+                            }}
+                            placeholder="PAN Card Number (ABCDE1234F)"
+                            autoComplete="off"
                             className="w-full px-2 py-1.5 border-0 rounded text-[12px] uppercase focus:outline-none focus:shadow-[0_0_0_2px_rgba(255,255,255,0.5)] transition-shadow"
+                            pattern="[A-Za-z]{5}[0-9]{4}[A-Za-z]{1}"
                             maxLength={10}
                             required
                           />
                         </div>
                         <div className="mb-0.5">
                           <input
-                            type="date"
-                            name="dob"
-                            value={formData.dob}
-                            onChange={handleInputChange}
-                            placeholder="Date of Birth (DD-MM-YYYY)"
-                            min={`${new Date().getFullYear() - 100}-01-01`}
-                            max={`${new Date().getFullYear() - 18}-12-31`}
-                            className="w-full px-2 py-1.5 border-0 rounded text-[12px] focus:outline-none focus:shadow-[0_0_0_2px_rgba(255,255,255,0.5)] transition-shadow"
-                            required
-                          />
-                        </div>
-                      </motion.div>
-                    )}
-
-                    {/* Step 4: Company Name & Salary */}
-                    {currentStep === 4 && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        transition={{ duration: 0.3, ease: "easeOut" }}
-                        className="space-y-0.5"
-                      >
-                        <div className="mb-0.5 relative company-autocomplete">
-                          <input
-                            type="text"
-                            value={companyInput}
-                            onChange={handleCompanyInputChange}
-                            placeholder="Company Name"
-                            className="w-full px-2 py-1.5 border-0 rounded text-[12px] focus:outline-none focus:shadow-[0_0_0_2px_rgba(255,255,255,0.5)] transition-shadow"
-                            required
-                            onFocus={() => companyInput.length > 0 && setShowCompanySuggestions(true)}
-                          />
-                          {showCompanySuggestions && filteredCompanies.length > 0 && (
-                            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                              {filteredCompanies.map((company, index) => (
-                                <div
-                                  key={index}
-                                  onClick={() => handleCompanySelect(company)}
-                                  className="px-3 py-2 text-[12px] text-gray-800 hover:bg-gradient-to-r hover:from-[#FF8C00]/10 hover:to-[#87CEEB]/10 cursor-pointer transition-colors"
-                                >
-                                  {company}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        <div className="mb-0.5">
-                          <input
                             type="number"
                             name="salary"
                             value={formData.salary}
-                            onChange={handleInputChange}
-                            placeholder="Monthly Salary"
+                            onChange={(e) => {
+                              const salaryValue = e.target.value.replace(/\D/g, '');
+                              setFormData({ ...formData, salary: salaryValue });
+                            }}
+                            placeholder="Salary"
+                            inputMode="numeric"
+                            min={15000}
                             className="w-full px-2 py-1.5 border-0 rounded text-[12px] focus:outline-none focus:shadow-[0_0_0_2px_rgba(255,255,255,0.5)] transition-shadow"
                             required
                           />
                         </div>
+                        </>
+                        )}
                       </motion.div>
-                    )}
 
                     {/* Navigation Buttons */}
                     <div className="flex gap-1 mt-0.5">
@@ -696,9 +626,14 @@ export default function KreditScoreLanding() {
                       )}
                       <button
                         type="submit"
-                        className={`${currentStep === 1 ? 'w-full' : 'flex-1'} px-2 py-1.5 bg-white text-[#0A2540] border-0 rounded text-[12px] font-bold hover:-translate-y-0.5 hover:bg-[#f8f9fa] hover:shadow-[0_8px_20px_rgba(255,255,255,0.5)] transition-all duration-300 shadow-md`}
+                        disabled={currentStep === 1 ? !isStepOneValid : !isStepTwoValid}
+                        className={`${currentStep === 1 ? 'w-full' : 'flex-1'} px-2 py-1.5 border-0 rounded text-[12px] font-bold transition-all duration-300 shadow-md ${
+                          (currentStep === 1 ? isStepOneValid : isStepTwoValid)
+                            ? 'bg-white text-[#0A2540] hover:-translate-y-0.5 hover:bg-[#f8f9fa] hover:shadow-[0_8px_20px_rgba(255,255,255,0.5)]'
+                            : 'bg-white/60 text-[#0A2540]/60 cursor-not-allowed'
+                        }`}
                       >
-                        {currentStep === 4 ? 'Submit' : 'Next'}
+                        {currentStep === 2 ? 'Submit' : 'Next'}
                       </button>
                     </div>
                   </form>
@@ -714,6 +649,10 @@ export default function KreditScoreLanding() {
                       <Lock className="w-2.5 h-2.5" />
                       <span>Data Secure</span>
                     </div>
+                    <div className="flex items-center gap-0.5 text-[9px] text-white">
+                      <Award className="w-2.5 h-2.5" />
+                      <span>No Hidden Charges</span>
+                    </div>
                   </div>
                 </div>
               </motion.div>
@@ -721,25 +660,39 @@ export default function KreditScoreLanding() {
 
             {/* Right - Score Meter with Float Animation (matching original CSS) */}
             <motion.div
-              className="relative hidden lg:flex justify-center items-center min-h-[200px]"
+              className={`relative justify-center items-center min-h-[165px] lg:min-h-[200px] mt-1 lg:mt-0 ${showMobileScore ? 'flex' : 'hidden lg:flex'}`}
             >
               <motion.div
                 className="relative"
                 initial={{ opacity: 0, x: 30 }}
-                animate={{
+                animate={shouldReduceMotion ? {
                   opacity: 1,
                   x: 0,
-                  y: [0, -15, 0]
+                  y: 0
+                } : isHeroAutoSlidePaused ? {
+                  opacity: 1,
+                  x: 0,
+                  y: 0
+                } : {
+                  opacity: 1,
+                  x: [0, 14, 0],
+                  y: [0, -10, 0]
                 }}
-                transition={{
+                transition={shouldReduceMotion ? {
                   opacity: { duration: 0.4, ease: "easeOut" },
-                  x: { duration: 0.4, ease: "easeOut" },
-                  y: { duration: 3, repeat: Infinity, ease: "easeInOut" }
+                  x: { duration: 0.4, ease: "easeOut" }
+                } : isHeroAutoSlidePaused ? {
+                  opacity: { duration: 0.4, ease: "easeOut" },
+                  x: { duration: 0.4, ease: "easeOut" }
+                } : {
+                  opacity: { duration: 0.4, ease: "easeOut" },
+                  x: { duration: 2.8, repeat: Infinity, ease: "easeInOut" },
+                  y: { duration: 2.8, repeat: Infinity, ease: "easeInOut" }
                 }}
               >
                 {/* Score Meter Ring with Advanced Animation */}
-                <div className="relative w-[160px] h-[160px]">
-                  <svg width="160" height="160" className="transform -rotate-90">
+                <div className="relative w-[128px] h-[128px] sm:w-[150px] sm:h-[150px] lg:w-[160px] lg:h-[160px]">
+                  <svg viewBox="0 0 160 160" className="w-full h-full transform -rotate-90">
                     {/* Background Circle */}
                     <circle cx="80" cy="80" r="70" stroke="#e5e7eb" strokeWidth="9" fill="none"/>
 
@@ -748,7 +701,7 @@ export default function KreditScoreLanding() {
                       cx="80"
                       cy="80"
                       r="70"
-                      stroke="url(#scoreGradient)"
+                      stroke={scoreColor}
                       strokeWidth="9"
                       fill="none"
                       strokeDasharray="440"
@@ -826,23 +779,13 @@ export default function KreditScoreLanding() {
                   {/* Score Number Display */}
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
                     <motion.div
-                      className="text-3xl font-bold"
+                      className="text-2xl sm:text-3xl font-bold"
                       initial={{ opacity: 0, scale: 0.5 }}
-                      animate={{
-                        opacity: 1,
-                        scale: 1,
-                        color: [
-                          '#00D66F',  // Green (start at 750)
-                          '#FFA500',  // Light orange
-                          '#FF8C00',  // Orange
-                          '#FFA500',  // Light orange
-                          '#00D66F'   // Green (final)
-                        ]
-                      }}
+                      animate={{ opacity: 1, scale: 1, color: scoreColor }}
                       transition={{
                         opacity: { duration: 0.5, delay: 0.3 },
                         scale: { duration: 0.5, delay: 0.3 },
-                        color: { duration: 3, times: [0, 0.2, 0.45, 0.65, 1] }
+                        color: { duration: 0.25 }
                       }}
                     >
                       <motion.span
@@ -850,11 +793,11 @@ export default function KreditScoreLanding() {
                         animate={{ opacity: 1 }}
                         transition={{ duration: 0.5 }}
                       >
-                        750
+                        {animatedScore}
                       </motion.span>
                     </motion.div>
                     <motion.div
-                      className="text-[11px] mt-0 font-medium"
+                      className="text-[10px] sm:text-[11px] mt-0 font-medium"
                       initial={{ opacity: 0 }}
                       animate={{
                         opacity: 1
@@ -862,14 +805,14 @@ export default function KreditScoreLanding() {
                       transition={{
                         opacity: { duration: 0.4, delay: 0.3 }
                       }}
-                      style={{ color: '#00D66F' }}
+                      style={{ color: scoreColor }}
                     >
                       <motion.span
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.4, duration: 0.3 }}
                       >
-                        Excellent
+                        {animatedScore >= 760 ? 'Excellent' : animatedScore >= 700 ? 'Good' : 'Building'}
                       </motion.span>
                     </motion.div>
                   </div>
@@ -885,7 +828,7 @@ export default function KreditScoreLanding() {
                     times: [0, 0.5, 1]
                   }}
                   style={{ willChange: 'transform' }}
-                  className="absolute -top-[6px] -right-[100px] bg-[#FF8C00] text-white px-[12px] py-[6px] rounded-[50px] text-[10px] font-semibold shadow-[0_3px_10px_rgba(0,0,0,0.15)] flex items-center gap-[4px] whitespace-nowrap"
+                  className="absolute -top-[4px] -right-[40px] sm:-top-[6px] sm:-right-[100px] bg-[#FF8C00] text-white px-[8px] sm:px-[12px] py-[4px] sm:py-[6px] rounded-[50px] text-[8px] sm:text-[10px] font-semibold shadow-[0_3px_10px_rgba(0,0,0,0.15)] flex items-center gap-[4px] whitespace-nowrap"
                 >
                   <span>⭐</span> 10 Lakh+ Happy Users
                 </motion.div>
@@ -900,7 +843,7 @@ export default function KreditScoreLanding() {
                     times: [0, 0.5, 1]
                   }}
                   style={{ willChange: 'transform' }}
-                  className="absolute -bottom-[6px] -right-[60px] bg-[#87CEEB] text-[#2c3e50] px-[12px] py-[6px] rounded-[50px] text-[10px] font-semibold shadow-[0_3px_10px_rgba(0,0,0,0.15)] flex items-center gap-[4px] whitespace-nowrap"
+                  className="absolute -bottom-[4px] -right-[26px] sm:-bottom-[6px] sm:-right-[60px] bg-[#87CEEB] text-[#2c3e50] px-[8px] sm:px-[12px] py-[4px] sm:py-[6px] rounded-[50px] text-[8px] sm:text-[10px] font-semibold shadow-[0_3px_10px_rgba(0,0,0,0.15)] flex items-center gap-[4px] whitespace-nowrap"
                 >
                   <span>🤖</span> AI Powered
                 </motion.div>
@@ -915,7 +858,7 @@ export default function KreditScoreLanding() {
                     times: [0, 0.5, 1]
                   }}
                   style={{ willChange: 'transform' }}
-                  className="absolute -bottom-[6px] -left-[145px] bg-white text-[#2c3e50] border-2 border-[#87CEEB] px-[12px] py-[6px] rounded-[50px] text-[10px] font-semibold shadow-[0_3px_10px_rgba(0,0,0,0.15)] flex items-center gap-[4px] whitespace-nowrap"
+                  className="absolute -bottom-[4px] -left-[38px] sm:-bottom-[6px] sm:-left-[145px] bg-white text-[#2c3e50] border-2 border-[#87CEEB] px-[8px] sm:px-[12px] py-[4px] sm:py-[6px] rounded-[50px] text-[8px] sm:text-[10px] font-semibold shadow-[0_3px_10px_rgba(0,0,0,0.15)] flex items-center gap-[4px] whitespace-nowrap"
                 >
                   <span>✓</span> No Impact in CIBIL Enquiry
                 </motion.div>
@@ -930,7 +873,7 @@ export default function KreditScoreLanding() {
                     times: [0, 0.5, 1]
                   }}
                   style={{ willChange: 'transform' }}
-                  className="absolute -top-[6px] -left-[60px] bg-[#10b981] text-white px-[12px] py-[6px] rounded-[50px] text-[10px] font-semibold shadow-[0_3px_10px_rgba(0,0,0,0.15)] flex items-center gap-[4px] whitespace-nowrap"
+                  className="absolute -top-[4px] -left-[26px] sm:-top-[6px] sm:-left-[60px] bg-[#10b981] text-white px-[8px] sm:px-[12px] py-[4px] sm:py-[6px] rounded-[50px] text-[8px] sm:text-[10px] font-semibold shadow-[0_3px_10px_rgba(0,0,0,0.15)] flex items-center gap-[4px] whitespace-nowrap"
                 >
                   <motion.span
                     animate={{ y: [0, -4, 0] }}
@@ -953,7 +896,7 @@ export default function KreditScoreLanding() {
         {/* SEO Content Hidden */}
         <div className="hidden">
           <h1>Personal Loans & Credit Score - सबसे तेज़!</h1>
-          <p>Get instant loan approval using AI. Check eligibility in 2 minutes, receive funds in 24 hours. Pre-approved loans, doctor/teacher/CA loans available.</p>
+          <p>Get instant loan approval using AI. Check eligibility in 2 minutes, receive funds in 24 hours. Pre-approved loans, doctor/government employee/CA loans available.</p>
         </div>
       </section>
 
@@ -992,58 +935,42 @@ export default function KreditScoreLanding() {
         />
 
         <div className="max-w-7xl mx-auto relative z-10">
-          {/* Vertical Loan Type Buttons - 2 rows on mobile */}
-          <div className="mb-8 md:mb-12 px-4 md:px-0">
-            {/* First Row - Mobile: 2 buttons, Desktop: all inline */}
-            <div className="flex flex-wrap justify-center gap-1 md:gap-2 mb-1 md:mb-0">
-              <button className="px-2 py-1.5 md:px-4 md:py-2 bg-[#87CEEB] text-white font-medium rounded-lg hover:bg-[#76bdda] transition-all shadow-md text-[10px] md:text-sm whitespace-nowrap">
+          {/* Loan type quick buttons — single row on mobile (scroll if needed) */}
+          <div className="mb-4 md:mb-8 px-4 md:px-0">
+            <div className="flex flex-nowrap md:flex-wrap justify-center gap-1 md:gap-2 overflow-x-auto pb-0 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <button
+                type="button"
+                className="shrink-0 px-2 py-1.5 md:px-4 md:py-2 bg-[#87CEEB] text-white font-medium rounded-lg hover:bg-[#76bdda] transition-all shadow-md text-[9px] sm:text-[10px] md:text-sm whitespace-nowrap"
+              >
                 Salaried Loan
               </button>
               <button
+                type="button"
                 onClick={() => handleFeatureClick('Business Loan for Entrepreneurship')}
-                className="px-2 py-1.5 md:px-4 md:py-2 bg-[#FF8C00] text-white font-medium rounded-lg hover:bg-[#e67e00] transition-all shadow-md text-[10px] md:text-sm whitespace-nowrap"
+                className="shrink-0 px-2 py-1.5 md:px-4 md:py-2 bg-[#FF8C00] text-white font-medium rounded-lg hover:bg-[#e67e00] transition-all shadow-md text-[9px] sm:text-[10px] md:text-sm whitespace-nowrap"
               >
                 Business Loan
               </button>
               <button
+                type="button"
                 onClick={() => handleFeatureClick('Insurance')}
-                className="px-2 py-1.5 md:px-4 md:py-2 bg-[#87CEEB] text-white font-medium rounded-lg hover:bg-[#76bdda] transition-all shadow-md text-[10px] md:text-sm whitespace-nowrap md:inline-block hidden md:inline"
+                className="shrink-0 px-2 py-1.5 md:px-4 md:py-2 bg-[#87CEEB] text-white font-medium rounded-lg hover:bg-[#76bdda] transition-all shadow-md text-[9px] sm:text-[10px] md:text-sm whitespace-nowrap"
               >
                 Insurance
               </button>
               <button
+                type="button"
                 onClick={() => handleFeatureClick('Investment')}
-                className="px-2 py-1.5 md:px-4 md:py-2 bg-[#FF8C00] text-white font-medium rounded-lg hover:bg-[#e67e00] transition-all shadow-md text-[10px] md:text-sm whitespace-nowrap hidden md:inline-block"
+                className="shrink-0 px-2 py-1.5 md:px-4 md:py-2 bg-[#FF8C00] text-white font-medium rounded-lg hover:bg-[#e67e00] transition-all shadow-md text-[9px] sm:text-[10px] md:text-sm whitespace-nowrap"
               >
                 Investment
               </button>
               <button
+                type="button"
                 onClick={() => handleFeatureClick('FD (Fixed Deposit)')}
-                className="px-2 py-1.5 md:px-4 md:py-2 bg-[#87CEEB] text-white font-medium rounded-lg hover:bg-[#76bdda] transition-all shadow-md text-[10px] md:text-sm whitespace-nowrap hidden md:inline-block"
+                className="shrink-0 px-2 py-1.5 md:px-4 md:py-2 bg-[#87CEEB] text-white font-medium rounded-lg hover:bg-[#76bdda] transition-all shadow-md text-[9px] sm:text-[10px] md:text-sm whitespace-nowrap"
               >
-                FD
-              </button>
-            </div>
-
-            {/* Second Row - Mobile only: remaining 3 buttons */}
-            <div className="flex flex-wrap justify-center gap-1 md:hidden">
-              <button
-                onClick={() => handleFeatureClick('Insurance')}
-                className="px-2 py-1.5 bg-[#87CEEB] text-white font-medium rounded-lg hover:bg-[#76bdda] transition-all shadow-md text-[10px] whitespace-nowrap"
-              >
-                Insurance
-              </button>
-              <button
-                onClick={() => handleFeatureClick('Investment')}
-                className="px-2 py-1.5 bg-[#FF8C00] text-white font-medium rounded-lg hover:bg-[#e67e00] transition-all shadow-md text-[10px] whitespace-nowrap"
-              >
-                Investment
-              </button>
-              <button
-                onClick={() => handleFeatureClick('FD (Fixed Deposit)')}
-                className="px-2 py-1.5 bg-[#87CEEB] text-white font-medium rounded-lg hover:bg-[#76bdda] transition-all shadow-md text-[10px] whitespace-nowrap"
-              >
-                FD
+                Fixed Deposit
               </button>
             </div>
           </div>
@@ -1301,177 +1228,7 @@ export default function KreditScoreLanding() {
         </svg>
       </a>
 
-      {/* WhatsApp Button */}
-      <a
-        href="https://wa.me/919811195111"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-[#25D366] rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-all duration-300"
-      >
-        <Phone className="w-7 h-7 text-white" />
-      </a>
-
-      {/* Footer - Always Visible */}
-      <footer className="bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 text-white py-8 md:py-16 px-4">
-        <div className="max-w-7xl mx-auto">
-          {/* Desktop View - 4 Columns */}
-          <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
-            {/* Company Info Column */}
-            <div>
-              {/* Logo with bouncing Score letters */}
-              <div className="text-[28px] font-bold mb-4">
-                <span className="text-white">Kredit</span>
-                <span className="inline-flex">
-                  <span className="inline-block animate-bounce-s text-[#87CEEB]">S</span>
-                  <span className="inline-block animate-bounce-c text-[#87CEEB]">c</span>
-                  <span className="inline-block animate-bounce-o text-[#87CEEB]">o</span>
-                  <span className="inline-block animate-bounce-r text-[#87CEEB]">r</span>
-                  <span className="inline-block animate-bounce-e text-[#87CEEB]">e</span>
-                </span>
-              </div>
-
-              {/* App Links */}
-              <div>
-                <h4 className="text-[16px] text-[#87CEEB] mb-4">Download Our App</h4>
-                <div className="flex flex-wrap gap-2">
-                  <a href="#" className="inline-flex items-center gap-2.5 bg-[#2a2a2a] px-5 py-2.5 rounded-[10px] text-white text-[14px] font-semibold hover:bg-[#87CEEB] hover:text-black hover:-translate-y-1 transition-all duration-300">
-                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M3,20.5V3.5C3,2.91 3.34,2.39 3.84,2.15L13.69,12L3.84,21.85C3.34,21.6 3,21.09 3,20.5M16.81,15.12L6.05,21.34L14.54,12.85L16.81,15.12M20.16,10.81C20.5,11.08 20.75,11.5 20.75,12C20.75,12.5 20.53,12.9 20.18,13.18L17.89,14.5L15.39,12L17.89,9.5L20.16,10.81M6.05,2.66L16.81,8.88L14.54,11.15L6.05,2.66Z" />
-                    </svg>
-                    <span>Google Play</span>
-                  </a>
-                  <a href="#" className="inline-flex items-center gap-2.5 bg-[#2a2a2a] px-5 py-2.5 rounded-[10px] text-white text-[14px] font-semibold hover:bg-[#87CEEB] hover:text-black hover:-translate-y-1 transition-all duration-300">
-                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M18.71,19.5C17.88,20.74 17,21.95 15.66,21.97C14.32,22 13.89,21.18 12.37,21.18C10.84,21.18 10.37,21.95 9.1,22C7.79,22.05 6.8,20.68 5.96,19.47C4.25,17 2.94,12.45 4.7,9.39C5.57,7.87 7.13,6.91 8.82,6.88C10.1,6.86 11.32,7.75 12.11,7.75C12.89,7.75 14.37,6.68 15.92,6.84C16.57,6.87 18.39,7.1 19.56,8.82C19.47,8.88 17.39,10.1 17.41,12.63C17.44,15.65 20.06,16.66 20.09,16.67C20.06,16.74 19.67,18.11 18.71,19.5M13,3.5C13.73,2.67 14.94,2.04 15.94,2C16.07,3.17 15.6,4.35 14.9,5.19C14.21,6.04 13.07,6.7 11.95,6.61C11.8,5.46 12.36,4.26 13,3.5Z" />
-                    </svg>
-                    <span>App Store</span>
-                  </a>
-                </div>
-              </div>
-            </div>
-
-            {/* Resources */}
-            <div>
-              <h4 className="text-[16px] font-semibold mb-4 text-[#87CEEB]">Resources</h4>
-              <ul className="space-y-3">
-                <li><a href="#" className="text-[#cccccc] hover:text-white transition-colors text-[14px]">Blog & Articles</a></li>
-                <li><a href="#" className="text-[#cccccc] hover:text-white transition-colors text-[14px]">FAQs</a></li>
-                <li><a href="#" className="text-[#cccccc] hover:text-white transition-colors text-[14px]">Financial Tips</a></li>
-              </ul>
-            </div>
-
-            {/* Legal */}
-            <div>
-              <h4 className="text-[16px] font-semibold mb-4 text-[#87CEEB]">Legal</h4>
-              <ul className="space-y-3">
-                <li><a href="#" className="text-[#cccccc] hover:text-white transition-colors text-[14px]">Privacy Policy</a></li>
-                <li><a href="#" className="text-[#cccccc] hover:text-white transition-colors text-[14px]">Cookie Policy</a></li>
-                <li><a href="#" className="text-[#cccccc] hover:text-white transition-colors text-[14px]">Disclaimer</a></li>
-              </ul>
-            </div>
-
-            {/* Contact Info */}
-            <div>
-              <h4 className="text-[16px] font-semibold mb-4 text-[#87CEEB]">Contact Us</h4>
-              <ul className="space-y-3">
-                <li className="flex items-center gap-3 text-[#cccccc] text-[14px]">
-                  <Mail className="w-5 h-5 text-[#87CEEB] flex-shrink-0" />
-                  <span>support@kreditscore.in</span>
-                </li>
-                <li className="flex items-center gap-3 text-[#cccccc] text-[14px]">
-                  <Phone className="w-5 h-5 text-[#87CEEB] flex-shrink-0" />
-                  <span>+91 98111 95111</span>
-                </li>
-                <li className="flex items-center gap-3 text-[#cccccc] text-[#cccccc] text-[14px]">
-                  <MapPin className="w-5 h-5 text-[#87CEEB] flex-shrink-0" />
-                  <span>New Delhi, India</span>
-                </li>
-              </ul>
-
-              {/* Social Media */}
-              <div className="flex gap-4 mt-6">
-                <a href="#" className="text-[#cccccc] hover:text-[#87CEEB] transition-colors">
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                  </svg>
-                </a>
-                <a href="#" className="text-[#cccccc] hover:text-[#87CEEB] transition-colors">
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
-                  </svg>
-                </a>
-                <a href="#" className="text-[#cccccc] hover:text-[#87CEEB] transition-colors">
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 0C8.74 0 8.333.015 7.053.072 5.775.132 4.905.333 4.14.63c-.789.306-1.459.717-2.126 1.384S.935 3.35.63 4.14C.333 4.905.131 5.775.072 7.053.012 8.333 0 8.74 0 12s.015 3.667.072 4.947c.06 1.277.261 2.148.558 2.913.306.788.717 1.459 1.384 2.126.667.666 1.336 1.079 2.126 1.384.766.296 1.636.499 2.913.558C8.333 23.988 8.74 24 12 24s3.667-.015 4.947-.072c1.277-.06 2.148-.262 2.913-.558.788-.306 1.459-.718 2.126-1.384.666-.667 1.079-1.335 1.384-2.126.296-.765.499-1.636.558-2.913.06-1.28.072-1.687.072-4.947s-.015-3.667-.072-4.947c-.06-1.277-.262-2.149-.558-2.913-.306-.789-.718-1.459-1.384-2.126C21.319 1.347 20.651.935 19.86.63c-.765-.297-1.636-.499-2.913-.558C15.667.012 15.26 0 12 0zm0 2.16c3.203 0 3.585.016 4.85.071 1.17.055 1.805.249 2.227.415.562.217.96.477 1.382.896.419.42.679.819.896 1.381.164.422.36 1.057.413 2.227.057 1.266.07 1.646.07 4.85s-.015 3.585-.074 4.85c-.061 1.17-.256 1.805-.421 2.227-.224.562-.479.96-.899 1.382-.419.419-.824.679-1.38.896-.42.164-1.065.36-2.235.413-1.274.057-1.649.07-4.859.07-3.211 0-3.586-.015-4.859-.074-1.171-.061-1.816-.256-2.236-.421-.569-.224-.96-.479-1.379-.899-.421-.419-.69-.824-.9-1.38-.165-.42-.359-1.065-.42-2.235-.045-1.26-.061-1.649-.061-4.844 0-3.196.016-3.586.061-4.861.061-1.17.255-1.814.42-2.234.21-.57.479-.96.9-1.381.419-.419.81-.689 1.379-.898.42-.166 1.051-.361 2.221-.421 1.275-.045 1.65-.06 4.859-.06l.045.03zm0 3.678c-3.405 0-6.162 2.76-6.162 6.162 0 3.405 2.76 6.162 6.162 6.162 3.405 0 6.162-2.76 6.162-6.162 0-3.405-2.76-6.162-6.162-6.162zM12 16c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4zm7.846-10.405c0 .795-.646 1.44-1.44 1.44-.795 0-1.44-.646-1.44-1.44 0-.794.646-1.439 1.44-1.439.793-.001 1.44.645 1.44 1.439z"/>
-                  </svg>
-                </a>
-              </div>
-            </div>
-          </div>
-
-          {/* Mobile View - 3 Columns in One Row */}
-          <div className="md:hidden grid grid-cols-3 gap-3 mb-6">
-            {/* Resources */}
-            <div>
-              <h4 className="text-[10px] font-semibold mb-2 text-[#87CEEB]">Resources</h4>
-              <ul className="space-y-1">
-                <li><a href="#" className="text-[#cccccc] hover:text-white transition-colors text-[8px] block">Blog & Articles</a></li>
-                <li><a href="#" className="text-[#cccccc] hover:text-white transition-colors text-[8px] block">FAQs</a></li>
-                <li><a href="#" className="text-[#cccccc] hover:text-white transition-colors text-[8px] block">Financial Tips</a></li>
-              </ul>
-            </div>
-
-            {/* Legal */}
-            <div>
-              <h4 className="text-[10px] font-semibold mb-2 text-[#87CEEB]">Legal</h4>
-              <ul className="space-y-1">
-                <li><a href="#" className="text-[#cccccc] hover:text-white transition-colors text-[8px] block">Privacy Policy</a></li>
-                <li><a href="#" className="text-[#cccccc] hover:text-white transition-colors text-[8px] block">Cookie Policy</a></li>
-                <li><a href="#" className="text-[#cccccc] hover:text-white transition-colors text-[8px] block">Disclaimer</a></li>
-              </ul>
-            </div>
-
-            {/* Contact Us (without email) */}
-            <div>
-              <h4 className="text-[10px] font-semibold mb-2 text-[#87CEEB]">Contact Us</h4>
-              <ul className="space-y-1">
-                <li className="flex items-center gap-1 text-[#cccccc] text-[8px]">
-                  <Phone className="w-2.5 h-2.5 text-[#87CEEB] flex-shrink-0" />
-                  <span>+91 98111 95111</span>
-                </li>
-                <li className="flex items-start gap-1 text-[#cccccc] text-[8px]">
-                  <MapPin className="w-2.5 h-2.5 text-[#87CEEB] flex-shrink-0 mt-0.5" />
-                  <span>New Delhi, India</span>
-                </li>
-              </ul>
-
-              {/* Social Media Icons */}
-              <div className="flex gap-2 mt-2">
-                <a href="#" className="text-[#cccccc] hover:text-[#87CEEB] transition-colors">
-                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                  </svg>
-                </a>
-                <a href="#" className="text-[#cccccc] hover:text-[#87CEEB] transition-colors">
-                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
-                  </svg>
-                </a>
-                <a href="#" className="text-[#cccccc] hover:text-[#87CEEB] transition-colors">
-                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 0C8.74 0 8.333.015 7.053.072 5.775.132 4.905.333 4.14.63c-.789.306-1.459.717-2.126 1.384S.935 3.35.63 4.14C.333 4.905.131 5.775.072 7.053.012 8.333 0 8.74 0 12s.015 3.667.072 4.947c.06 1.277.261 2.148.558 2.913.306.788.717 1.459 1.384 2.126.667.666 1.336 1.079 2.126 1.384.766.296 1.636.499 2.913.558C8.333 23.988 8.74 24 12 24s3.667-.015 4.947-.072c1.277-.06 2.148-.262 2.913-.558.788-.306 1.459-.718 2.126-1.384.666-.667 1.079-1.335 1.384-2.126.296-.765.499-1.636.558-2.913.06-1.28.072-1.687.072-4.947s-.015-3.667-.072-4.947c-.06-1.277-.262-2.149-.558-2.913-.306-.789-.718-1.459-1.384-2.126C21.319 1.347 20.651.935 19.86.63c-.765-.297-1.636-.499-2.913-.558C15.667.012 15.26 0 12 0zm0 2.16c3.203 0 3.585.016 4.85.071 1.17.055 1.805.249 2.227.415.562.217.96.477 1.382.896.419.42.679.819.896 1.381.164.422.36 1.057.413 2.227.057 1.266.07 1.646.07 4.85s-.015 3.585-.074 4.85c-.061 1.17-.256 1.805-.421 2.227-.224.562-.479.96-.899 1.382-.419.419-.824.679-1.38.896-.42.164-1.065.36-2.235.413-1.274.057-1.649.07-4.859.07-3.211 0-3.586-.015-4.859-.074-1.171-.061-1.816-.256-2.236-.421-.569-.224-.96-.479-1.379-.899-.421-.419-.69-.824-.9-1.38-.165-.42-.359-1.065-.42-2.235-.045-1.26-.061-1.649-.061-4.844 0-3.196.016-3.586.061-4.861.061-1.17.255-1.814.42-2.234.21-.57.479-.96.9-1.381.419-.419.81-.689 1.379-.898.42-.166 1.051-.361 2.221-.421 1.275-.045 1.65-.06 4.859-.06l.045.03zm0 3.678c-3.405 0-6.162 2.76-6.162 6.162 0 3.405 2.76 6.162 6.162 6.162 3.405 0 6.162-2.76 6.162-6.162 0-3.405-2.76-6.162-6.162-6.162zM12 16c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4zm7.846-10.405c0 .795-.646 1.44-1.44 1.44-.795 0-1.44-.646-1.44-1.44 0-.794.646-1.439 1.44-1.439.793-.001 1.44.645 1.44 1.439z"/>
-                  </svg>
-                </a>
-              </div>
-            </div>
-          </div>
-
-          {/* Bottom Bar */}
-          <div className="border-t border-gray-700 pt-4 md:pt-8 text-center">
-            <p className="text-[10px] md:text-[14px] text-gray-400">© 2025 KreditScore. All Rights Reserved.</p>
-          </div>
-        </div>
-      </footer>
+      <Footer />
 
       {/* Coming Soon Modal */}
       <ComingSoonModal
@@ -1495,3 +1252,4 @@ export default function KreditScoreLanding() {
     </div>
   );
 }
+

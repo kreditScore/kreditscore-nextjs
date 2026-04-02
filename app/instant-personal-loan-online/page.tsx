@@ -6,17 +6,18 @@ import { Phone, ArrowRight, Check, CheckCircle, Shield, Zap, TrendingUp, Clock, 
 import Header from '@/components/Header';
 import CustomCursor from '@/components/CustomCursor';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useAuth } from '@/components/AuthProvider';
+import FirebasePhoneAuthInline from '@/components/FirebasePhoneAuthInline';
 
 export default function ApplyLoanPage() {
   const router = useRouter();
+  const pathname = usePathname();
+  const isPreApproved = pathname === '/pre-approved-personal-loan';
+  const { user, loading: authLoading } = useAuth();
   const [name, setName] = useState('');
   const [mobile, setMobile] = useState('');
-  const [otp, setOtp] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpVerified, setOtpVerified] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [countdown, setCountdown] = useState(0);
   const [formStep, setFormStep] = useState(1);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
@@ -197,35 +198,13 @@ export default function ApplyLoanPage() {
     ? states.filter(state => state.toLowerCase().startsWith(formData.officeState.toLowerCase())).slice(0, 4)
     : [];
 
-  // Countdown timer
   useEffect(() => {
-    if (countdown > 0) {
-      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [countdown]);
-
-  // Auto-fetch and auto-submit OTP
-  useEffect(() => {
-    if (otpSent && 'OTPCredential' in window) {
-      const ac = new AbortController();
-      setTimeout(() => {
-        const autoOtp = '1234';
-        setOtp(autoOtp);
-        // Auto-submit after OTP is filled
-        setTimeout(() => {
-          if (autoOtp === '1234') {
-            setIsLoading(true);
-            setTimeout(() => {
-              setOtpVerified(true);
-              setIsLoading(false);
-            }, 800);
-          }
-        }, 500);
-      }, 2000);
-      return () => ac.abort();
-    }
-  }, [otpSent]);
+    if (!user) return;
+    const p = user.phoneNumber?.replace(/\D/g, '').slice(-10);
+    if (p && p.length === 10) setMobile(p);
+    if (user.displayName) setName(user.displayName);
+    setFormStep(1);
+  }, [user]);
 
   // Capitalize name input
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -235,31 +214,6 @@ export default function ApplyLoanPage() {
       .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
       .join(' ');
     setName(capitalizedValue);
-  };
-
-  const handleSendOTP = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (name.trim() && mobile.length === 10) {
-      setIsLoading(true);
-      setTimeout(() => {
-        setOtpSent(true);
-        setIsLoading(false);
-        setCountdown(30);
-      }, 1500);
-    }
-  };
-
-  const handleVerifyOTP = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (otp === '1234') {
-      setIsLoading(true);
-      setTimeout(() => {
-        setOtpVerified(true);
-        setIsLoading(false);
-      }, 1000);
-    } else {
-      alert('Invalid OTP. Please use 1234 for testing.');
-    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -432,7 +386,7 @@ export default function ApplyLoanPage() {
               "@type": "FinancialService",
               "name": "KreditScore",
               "url": "https://kreditscore.com",
-              "logo": "https://kreditscore.com/logo.png",
+              "logo": "https://www.kreditscore.in/logo.png",
               "sameAs": [
                 "https://www.facebook.com/kreditscore",
                 "https://twitter.com/kreditscore",
@@ -461,7 +415,7 @@ export default function ApplyLoanPage() {
             },
             "offers": {
               "@type": "Offer",
-              "url": "https://kreditscore.com/instant-personal-loan-online",
+              "url": "https://www.kreditscore.in/instant-personal-loan-online",
               "priceCurrency": "INR",
               "availability": "https://schema.org/InStock",
               "validFrom": "2024-01-01"
@@ -494,13 +448,13 @@ export default function ApplyLoanPage() {
                 "@type": "ListItem",
                 "position": 2,
                 "name": "Loans",
-                "item": "https://kreditscore.com/#loans"
+                "item": "https://www.kreditscore.in/#loans"
               },
               {
                 "@type": "ListItem",
                 "position": 3,
                 "name": "Instant Personal Loan Online",
-                "item": "https://kreditscore.com/instant-personal-loan-online"
+                "item": "https://www.kreditscore.in/instant-personal-loan-online"
               }
             ]
           })
@@ -549,32 +503,38 @@ export default function ApplyLoanPage() {
                 className="inline-flex items-center gap-1.5 sm:gap-2 bg-gradient-to-r from-orange-500 to-pink-500 text-white px-3 py-1.5 sm:px-4 sm:py-2 md:px-6 rounded-full text-xs sm:text-sm font-semibold mb-4 sm:mb-5 md:mb-6 shadow-lg w-fit"
               >
                 <Zap className="w-3 h-3 sm:w-4 sm:h-4" />
-                <span className="whitespace-nowrap">Fresh Personal Loan</span>
+                <span className="whitespace-nowrap">{isPreApproved ? 'Pre-Approved Personal Loan' : 'Fresh Personal Loan'}</span>
               </motion.div>
               <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold mb-2 sm:mb-3 md:mb-4 bg-gradient-to-r from-gray-900 via-blue-900 to-gray-900 bg-clip-text text-transparent leading-tight">
-                Get Your Dream Loan
+                {isPreApproved ? 'No Payslip Required' : 'Get Your Dream Loan'}
               </h1>
               <p className="text-xs sm:text-sm md:text-base lg:text-lg text-gray-600 mb-4 sm:mb-6 md:mb-8 whitespace-nowrap">
-                ROI starts from <span className="font-bold text-orange-600">9%* per year</span>
-                <span className="text-[10px] sm:text-xs md:text-sm"> (0.75% per month)</span>
+                {isPreApproved ? (
+                  'Get instant loan approval without income documents. Your credit score is your proof!'
+                ) : (
+                  <>
+                    ROI starts from <span className="font-bold text-orange-600">9%* per year</span>
+                    <span className="text-[10px] sm:text-xs md:text-sm"> (0.75% per month)</span>
+                  </>
+                )}
               </p>
 
               {/* Quick Stats */}
               <div className="grid grid-cols-3 gap-1.5 sm:gap-2 md:gap-3 lg:gap-4">
                 <div className="bg-white rounded-lg sm:rounded-xl md:rounded-2xl p-1.5 sm:p-2 md:p-3 lg:p-4 shadow-lg border border-gray-100">
                   <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 lg:w-8 lg:h-8 text-blue-600 mb-0.5 sm:mb-1 md:mb-2" />
-                  <p className="text-xs sm:text-sm md:text-base lg:text-lg font-bold text-gray-900 leading-tight">₹1L-₹5Cr</p>
-                  <p className="text-[9px] sm:text-[10px] md:text-xs text-gray-600">Amount</p>
+                  <p className="text-xs sm:text-sm md:text-base lg:text-lg font-bold text-gray-900 leading-tight">{isPreApproved ? '50k to 15 lakh' : '₹1L-₹5Cr'}</p>
+                  <p className="text-[9px] sm:text-[10px] md:text-xs text-gray-600">{isPreApproved ? 'Loan Amount' : 'Amount'}</p>
                 </div>
                 <div className="bg-white rounded-lg sm:rounded-xl md:rounded-2xl p-1.5 sm:p-2 md:p-3 lg:p-4 shadow-lg border border-gray-100">
                   <Clock className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 lg:w-8 lg:h-8 text-green-600 mb-0.5 sm:mb-1 md:mb-2" />
-                  <p className="text-xs sm:text-sm md:text-base lg:text-lg font-bold text-gray-900 leading-tight">1-8 Years</p>
+                  <p className="text-xs sm:text-sm md:text-base lg:text-lg font-bold text-gray-900 leading-tight">{isPreApproved ? '1-5 Years' : '1-8 Years'}</p>
                   <p className="text-[9px] sm:text-[10px] md:text-xs text-gray-600">Tenure</p>
                 </div>
                 <div className="bg-white rounded-lg sm:rounded-xl md:rounded-2xl p-1.5 sm:p-2 md:p-3 lg:p-4 shadow-lg border border-gray-100">
                   <Zap className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 lg:w-8 lg:h-8 text-orange-600 mb-0.5 sm:mb-1 md:mb-2" />
-                  <p className="text-xs sm:text-sm md:text-base lg:text-lg font-bold text-gray-900 leading-tight">24-72 Hrs</p>
-                  <p className="text-[9px] sm:text-[10px] md:text-xs text-gray-600">Approval</p>
+                  <p className="text-xs sm:text-sm md:text-base lg:text-lg font-bold text-gray-900 leading-tight">{isPreApproved ? 'Within Minute' : '24-72 Hrs'}</p>
+                  <p className="text-[9px] sm:text-[10px] md:text-xs text-gray-600">{isPreApproved ? 'Approval' : 'Approval'}</p>
                 </div>
               </div>
             </motion.div>
@@ -627,166 +587,14 @@ export default function ApplyLoanPage() {
                         </motion.p>
                       </div>
 
+                      {authLoading && (
+                        <p className="text-center text-sm text-gray-500 py-6">Loading…</p>
+                      )}
+                      {!authLoading && !user && (
+                        <FirebasePhoneAuthInline returnPath={pathname} />
+                      )}
+                      {!authLoading && user && (
                       <AnimatePresence mode="wait">
-                        {!otpSent ? (
-                          /* Mobile Number Form */
-                          <motion.form
-                            key="mobile-form"
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -20 }}
-                            onSubmit={handleSendOTP}
-                            className="space-y-2.5 sm:space-y-3 md:space-y-4"
-                          >
-                            <motion.div
-                              initial={{ opacity: 0, y: 10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ delay: 0.1 }}
-                            >
-                              <label className="block text-[10px] sm:text-xs font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                                Full Name *
-                              </label>
-                              <input
-                                type="text"
-                                value={name}
-                                onChange={handleNameChange}
-                                placeholder="Enter your full name"
-                                className="block w-full px-2.5 py-2 sm:px-3 sm:py-2.5 md:px-4 md:py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all text-sm sm:text-base font-medium hover:border-gray-300"
-                                required
-                                autoComplete="name"
-                              />
-                            </motion.div>
-
-                            <motion.div
-                              initial={{ opacity: 0, y: 10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ delay: 0.2 }}
-                            >
-                              <label className="block text-[10px] sm:text-xs font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                                Mobile Number *
-                              </label>
-                              <div className="relative flex gap-1.5 sm:gap-2">
-                                <div className="flex items-center px-2 py-2 sm:px-2.5 sm:py-2.5 md:px-3 md:py-3 border-2 border-gray-200 rounded-lg bg-gray-50 font-semibold text-gray-700 text-xs sm:text-sm">
-                                  <Phone className="h-3 w-3 sm:h-4 sm:w-4 mr-0.5 sm:mr-1 text-gray-500" />
-                                  +91
-                                </div>
-                                <input
-                                  type="tel"
-                                  value={mobile}
-                                  onChange={(e) => setMobile(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                                  placeholder="10-digit mobile"
-                                  className="block flex-1 px-2.5 py-2 sm:px-3 sm:py-2.5 md:px-4 md:py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all text-sm sm:text-base font-medium hover:border-gray-300"
-                                  maxLength={10}
-                                  required
-                                  autoComplete="tel"
-                                />
-                              </div>
-                            </motion.div>
-
-                            <motion.button
-                              whileHover={{ scale: 1.05 }}
-                              whileTap={{ scale: 0.95 }}
-                              type="submit"
-                              disabled={!name.trim() || mobile.length !== 10 || isLoading}
-                              className="w-full bg-gradient-to-br from-orange-500 via-orange-600 to-red-500 text-white py-2.5 sm:py-3 md:py-4 rounded-lg sm:rounded-xl font-bold text-sm sm:text-base md:text-lg flex items-center justify-center gap-1.5 sm:gap-2 hover:from-orange-600 hover:to-red-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
-                            >
-                              {isLoading ? (
-                                <div className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 border-3 border-white border-t-transparent rounded-full animate-spin" />
-                              ) : (
-                                <>
-                                  Get OTP
-                                  <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" />
-                                </>
-                              )}
-                            </motion.button>
-
-                            <p className="text-[10px] text-gray-500 text-center leading-snug">
-                              By continuing, you agree to our{' '}
-                              <Link href="#" className="text-orange-600 hover:underline font-medium">
-                                Terms
-                              </Link>
-                              {' '}and{' '}
-                              <Link href="#" className="text-orange-600 hover:underline font-medium">
-                                Privacy
-                              </Link>
-                            </p>
-                          </motion.form>
-                        ) : !otpVerified ? (
-                          /* OTP Verification Form */
-                          <motion.form
-                            key="otp-form"
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -20 }}
-                            onSubmit={handleVerifyOTP}
-                            className="space-y-2.5 sm:space-y-3 md:space-y-4"
-                          >
-                            <div className="bg-green-50 border-2 border-green-200 rounded-lg p-2 sm:p-2.5 md:p-3">
-                              <p className="text-[10px] sm:text-xs text-green-800 text-center font-medium">
-                                OTP sent to <span className="font-bold">+91 {mobile}</span>
-                              </p>
-                            </div>
-
-                            <div>
-                              <label className="block text-[10px] sm:text-xs font-semibold text-gray-700 mb-1.5 sm:mb-2">
-                                Enter OTP
-                              </label>
-                              <input
-                                type="text"
-                                value={otp}
-                                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                                placeholder="0 0 0 0"
-                                className="block w-full px-2 py-2 sm:px-2.5 sm:py-2.5 md:px-3 md:py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all text-center text-xl sm:text-2xl md:text-3xl tracking-[0.5em] sm:tracking-[0.65em] md:tracking-[0.8em] font-bold"
-                                maxLength={4}
-                                required
-                                autoComplete="one-time-code"
-                              />
-                              <p className="text-[10px] text-gray-500 mt-2 text-center">
-                                {countdown > 0 ? (
-                                  <span>Resend in <span className="font-semibold text-blue-600">{countdown}s</span></span>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={() => setCountdown(30)}
-                                    className="text-blue-600 hover:text-blue-700 font-semibold hover:underline"
-                                  >
-                                    Resend OTP
-                                  </button>
-                                )}
-                              </p>
-                            </div>
-
-                            <motion.button
-                              whileHover={{ scale: 1.02 }}
-                              whileTap={{ scale: 0.98 }}
-                              type="submit"
-                              disabled={otp.length !== 4 || isLoading}
-                              className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-2.5 sm:py-3 rounded-lg font-semibold text-sm sm:text-base flex items-center justify-center gap-1.5 sm:gap-2 hover:from-green-700 hover:to-green-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
-                            >
-                              {isLoading ? (
-                                <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                              ) : (
-                                <>
-                                  Verify & Continue
-                                  <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                </>
-                              )}
-                            </motion.button>
-
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setOtpSent(false);
-                                setOtp('');
-                                setMobile('');
-                              }}
-                              className="w-full text-[10px] sm:text-xs text-gray-600 hover:text-gray-800 font-semibold hover:underline"
-                            >
-                              Change mobile number
-                            </button>
-                          </motion.form>
-                        ) : (
-                          /* Multi-step Application Form After OTP Verification */
                           <motion.div
                             key="application-form"
                             initial={{ opacity: 0, scale: 0.95 }}
@@ -1264,8 +1072,8 @@ export default function ApplyLoanPage() {
                               )}
                             </form>
                           </motion.div>
-                        )}
                       </AnimatePresence>
+                      )}
                     </>
                   ) : (
                     /* Thank You Success Animation */
@@ -1357,24 +1165,35 @@ export default function ApplyLoanPage() {
                     <Award className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" strokeWidth={2.5} />
                   </div>
 
-                  <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 mb-1 sm:mb-2">Key Features</h3>
-                  <p className="text-[10px] sm:text-xs md:text-sm text-gray-600 mb-4 sm:mb-5">Unsecured loans with flexible usage and quick processing</p>
+                  <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 mb-1 sm:mb-2">{isPreApproved ? 'Why Pre-Approved Loan?' : 'Key Features'}</h3>
+                  <p className="text-[10px] sm:text-xs md:text-sm text-gray-600 mb-4 sm:mb-5">
+                    {isPreApproved
+                      ? 'Instant loan approval without income documents'
+                      : 'Unsecured loans with flexible usage and quick processing'}
+                  </p>
 
                   <div className="space-y-2 sm:space-y-2.5 mb-4 sm:mb-5 flex-grow">
-                    {[
-                      { icon: Shield, text: 'No collateral required' },
-                      { icon: CreditCard, text: 'Easy part payment option' },
-                      { icon: Check, text: 'Zero Forecloser charge*' },
-                      { icon: FileText, text: 'Minimal Documentation' },
-                      { icon: Zap, text: '100% Digital Process' }
-                    ].map((item, idx) => (
+                    {(
+                      isPreApproved
+                        ? [
+                            { icon: Zap, text: 'Instant loan approval without income documents' },
+                            { icon: FileText, text: 'No Income Documents' },
+                            { icon: Clock, text: 'Lightning Fast' },
+                            { icon: CheckCircle, text: 'Approval based on credit report only.' }
+                          ]
+                        : [
+                            { icon: Shield, text: 'No collateral required' },
+                            { icon: CreditCard, text: 'Easy part payment option' },
+                            { icon: Check, text: 'Zero Forecloser charge*' },
+                            { icon: FileText, text: 'Minimal Documentation' },
+                            { icon: Zap, text: '100% Digital Process' }
+                          ]
+                    ).map((item, idx) => (
                       <div key={idx} className="flex items-center gap-2 sm:gap-2.5">
                         <div className="w-7 h-7 sm:w-8 sm:h-8 bg-blue-100/60 rounded-lg flex items-center justify-center flex-shrink-0">
                           <item.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600" />
                         </div>
-                        <p className="text-[10px] sm:text-xs md:text-sm text-gray-700">
-                          {item.text}
-                        </p>
+                        <p className="text-[10px] sm:text-xs md:text-sm text-gray-700">{item.text}</p>
                       </div>
                     ))}
                   </div>
@@ -1469,11 +1288,16 @@ export default function ApplyLoanPage() {
                   </div>
 
                   <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 mb-1 sm:mb-2">Required Documents</h3>
-                  <p className="text-[10px] sm:text-xs md:text-sm text-gray-600 mb-4 sm:mb-5">Basic identity proof, address proof, and income documents</p>
+                  <p className="text-[10px] sm:text-xs md:text-sm text-gray-600 mb-4 sm:mb-5">
+                    {isPreApproved
+                      ? 'Basic identity proof, address proof'
+                      : 'Basic identity proof, address proof, and income documents'}
+                  </p>
 
                   <div className="space-y-3 sm:space-y-3.5 mb-4 sm:mb-5 flex-grow">
                     <div className="grid grid-cols-2 gap-3 sm:gap-4">
                       <div>
+                        {isPreApproved && <h4 className="text-xs sm:text-sm font-bold text-gray-900 mb-1.5 sm:mb-2">Employeement Detail</h4>}
                         <h4 className="text-xs sm:text-sm font-bold text-gray-900 mb-1.5 sm:mb-2">Identity Proof</h4>
                         <ul className="space-y-1 sm:space-y-1.5">
                           {['Passport', 'Voter ID', 'Driving License', 'PAN Card'].map((doc, idx) => (
@@ -1501,7 +1325,10 @@ export default function ApplyLoanPage() {
                     <div>
                       <h4 className="text-xs sm:text-sm font-bold text-gray-900 mb-1.5 sm:mb-2">Other Documents</h4>
                       <ul className="space-y-1 sm:space-y-1.5">
-                        {['Salary Slips (3 months)', 'Bank Statement (3 months)'].map((doc, idx) => (
+                        {(isPreApproved
+                          ? ['Employeement Datail', 'Bank Statement (3 months)']
+                          : ['Salary Slips (3 months)', 'Bank Statement (3 months)']
+                        ).map((doc, idx) => (
                           <li key={idx} className="flex items-start gap-1.5 text-[10px] sm:text-xs md:text-sm text-gray-700">
                             <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-orange-500 rounded-full flex-shrink-0 mt-1.5 sm:mt-1.5" />
                             <span className="leading-tight">{doc}</span>

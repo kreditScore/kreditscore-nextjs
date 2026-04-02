@@ -35,14 +35,15 @@ import {
   Send,
   Smartphone
 } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { useAuth } from '@/components/AuthProvider';
+import FirebasePhoneAuthInline from '@/components/FirebasePhoneAuthInline';
 
 export default function SalariedOverdraftPage() {
-  // Form Steps: 0 = Name+Mobile, 1 = OTP, 2 = Personal, 3 = Employer, 4 = Office Address, 5 = Home Address, 6 = OD Details
+  const pathname = usePathname();
+  const { user, loading: authLoading } = useAuth();
+  // Form Steps: 0 = Name+Mobile, 2 = Personal, 3 = Employer, 4 = Office Address, 5 = Home Address, 6 = OD Details (OTP step removed — use Firebase login)
   const [formStep, setFormStep] = useState(0);
-  const [otpSent, setOtpSent] = useState(false);
-  const [otp, setOtp] = useState(['', '', '', '']);
-  const [otpTimer, setOtpTimer] = useState(30);
-  const [canResendOTP, setCanResendOTP] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -96,15 +97,16 @@ export default function SalariedOverdraftPage() {
   const indianCompanies = ['TCS', 'Infosys', 'Wipro', 'HCL Technologies', 'Tech Mahindra', 'Reliance Industries', 'HDFC Bank', 'ICICI Bank', 'SBI', 'Tata Motors', 'Mahindra & Mahindra', 'Adani Group', 'Larsen & Toubro', 'Asian Paints', 'Bajaj Auto'];
   const companyTypes = ['Private Limited', 'Public Limited', 'Government', 'MNC', 'Startup', 'Partnership', 'Proprietorship'];
 
-  // OTP Timer Effect
   useEffect(() => {
-    if (otpSent && otpTimer > 0) {
-      const timer = setTimeout(() => setOtpTimer(otpTimer - 1), 1000);
-      return () => clearTimeout(timer);
-    } else if (otpTimer === 0) {
-      setCanResendOTP(true);
+    if (!user) return;
+    const p = user.phoneNumber?.replace(/\D/g, '').slice(-10);
+    if (p && p.length === 10) {
+      setFormData((prev) => ({ ...prev, mobile: p }));
     }
-  }, [otpTimer, otpSent]);
+    if (user.displayName) {
+      setFormData((prev) => ({ ...prev, fullName: user.displayName ?? prev.fullName }));
+    }
+  }, [user]);
 
   // Auto-fill permanent address if residence is owned
   useEffect(() => {
@@ -128,46 +130,9 @@ export default function SalariedOverdraftPage() {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSendOTP = (e: React.FormEvent) => {
+  const handleContinueFromStep0 = (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.fullName && formData.mobile.length === 10) {
-      setOtpSent(true);
-      setFormStep(1);
-      setOtpTimer(30);
-      setCanResendOTP(false);
-      // Auto-fill OTP for demo
-      setTimeout(() => {
-        setOtp(['1', '2', '3', '4']);
-      }, 500);
-      console.log('OTP sent to:', formData.mobile);
-    }
-  };
-
-  const handleOTPChange = (index: number, value: string) => {
-    if (value.length <= 1 && /^\d*$/.test(value)) {
-      const newOtp = [...otp];
-      newOtp[index] = value;
-      setOtp(newOtp);
-
-      // Auto-focus next input
-      if (value && index < 3) {
-        const nextInput = document.getElementById(`otp-${index + 1}`);
-        nextInput?.focus();
-      }
-    }
-  };
-
-  const handleResendOTP = () => {
-    setOtpTimer(30);
-    setCanResendOTP(false);
-    console.log('OTP resent to:', formData.mobile);
-  };
-
-  const handleVerifyOTP = (e: React.FormEvent) => {
-    e.preventDefault();
-    const otpValue = otp.join('');
-    if (otpValue.length === 4) {
-      console.log('OTP verified:', otpValue);
       setFormStep(2);
     }
   };
@@ -178,11 +143,12 @@ export default function SalariedOverdraftPage() {
 
   const handlePrevStep = () => {
     if (formStep > 2) setFormStep(formStep - 1);
+    else if (formStep === 2) setFormStep(0);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Form submitted:', formData);
+    if (formStep !== 6) return;
     setIsSubmitted(true);
   };
 
@@ -223,7 +189,7 @@ export default function SalariedOverdraftPage() {
             },
             "interestRate": "12% p.a. onwards",
             "feesAndCommissionsSpecification": "No annual fees. Interest charged only on utilized amount.",
-            "url": "https://kreditscore.com/salaried-overdraft"
+            "url": "https://www.kreditscore.in/salaried-overdraft"
           })
         }}
       />
@@ -727,6 +693,10 @@ export default function SalariedOverdraftPage() {
                       </p>
                     </motion.div>
                   </motion.div>
+                ) : authLoading ? (
+                  <p className="text-center py-8 text-gray-600">Loading…</p>
+                ) : !user ? (
+                  <FirebasePhoneAuthInline returnPath={pathname} />
                 ) : (
                   <AnimatePresence mode="wait">
                     <motion.form
@@ -735,7 +705,7 @@ export default function SalariedOverdraftPage() {
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: -20 }}
                       transition={{ duration: 0.3 }}
-                      onSubmit={formStep === 1 ? handleVerifyOTP : formStep === 0 ? handleSendOTP : handleSubmit}
+                      onSubmit={formStep === 0 ? handleContinueFromStep0 : handleSubmit}
                     >
                     {/* Step 0: Name + Mobile */}
                     {formStep === 0 && (
@@ -792,66 +762,9 @@ export default function SalariedOverdraftPage() {
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
                         >
-                          <span>Send OTP</span>
+                          <span>Continue</span>
                           <ArrowRight className="w-5 h-5" />
                         </motion.button>
-                      </div>
-                    )}
-
-                    {/* Step 1: OTP Verification */}
-                    {formStep === 1 && (
-                      <div className="space-y-4">
-                        <h3 className="text-base font-semibold text-green-700 mb-3 text-center">Verify Mobile Number</h3>
-                        <p className="text-sm text-gray-600 text-center mb-4">
-                          Enter the 4-digit OTP sent to +91 {formData.mobile}
-                        </p>
-
-                        <div className="flex justify-center space-x-3 mb-4">
-                          {otp.map((digit, index) => (
-                            <input
-                              key={index}
-                              id={`otp-${index}`}
-                              type="text"
-                              value={digit}
-                              onChange={(e) => handleOTPChange(index, e.target.value)}
-                              className="w-14 h-14 text-center text-2xl font-bold border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
-                              maxLength={1}
-                            />
-                          ))}
-                        </div>
-
-                        <div className="text-center mb-4">
-                          {otpTimer > 0 ? (
-                            <p className="text-sm text-gray-600">
-                              Resend OTP in <span className="font-bold text-green-600">{otpTimer}s</span>
-                            </p>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={handleResendOTP}
-                              className="text-sm text-green-600 font-semibold hover:underline"
-                            >
-                              Resend OTP
-                            </button>
-                          )}
-                        </div>
-
-                        <div className="flex space-x-3">
-                          <button
-                            type="button"
-                            onClick={() => setFormStep(0)}
-                            className="flex-1 bg-gray-200 text-gray-700 px-4 py-3 rounded-full font-semibold hover:bg-gray-300 transition-all text-sm"
-                          >
-                            ← Back
-                          </button>
-                          <button
-                            type="submit"
-                            disabled={otp.join('').length !== 4}
-                            className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 text-white px-4 py-3 rounded-full font-semibold hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg text-sm"
-                          >
-                            Verify OTP →
-                          </button>
-                        </div>
                       </div>
                     )}
 

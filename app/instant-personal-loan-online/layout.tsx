@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     title: 'Instant Personal Loan Online - Quick Approval in Minutes | KreditScore',
     description: 'Get instant personal loan online from ₹50K to ₹25 lakh with minimal documentation. Apply now for quick approval and low interest rates!',
     type: 'website',
-    url: 'https://kreditscore.com/instant-personal-loan-online',
+    url: 'https://www.kreditscore.in/instant-personal-loan-online',
     siteName: 'KreditScore',
     images: [
       {
@@ -42,7 +42,7 @@ export const metadata: Metadata = {
     images: ['/og-image-instant-loan.jpg'],
   },
   alternates: {
-    canonical: 'https://kreditscore.com/instant-personal-loan-online',
+    canonical: 'https://www.kreditscore.in/instant-personal-loan-online',
   },
   robots: {
     index: true,

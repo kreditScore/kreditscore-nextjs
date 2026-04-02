@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     title: 'Existing Loan Transfer - No Income Proof Required | KreditScore',
     description: 'Transfer any existing loan without income proof! Switch to lower rates and reduce EMI. Minimal documentation required.',
     type: 'website',
-    url: 'https://kreditscore.com/existing-loan-transfer',
+    url: 'https://www.kreditscore.in/existing-loan-transfer',
     siteName: 'KreditScore',
     images: [
       {
@@ -47,7 +47,7 @@ export const metadata: Metadata = {
     images: ['/og-image-existing-loan-transfer.jpg'],
   },
   alternates: {
-    canonical: 'https://kreditscore.com/existing-loan-transfer',
+    canonical: 'https://www.kreditscore.in/existing-loan-transfer',
   },
   robots: {
     index: true,

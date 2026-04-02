@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     title: 'CA Loan - Highest Loan Amount for Chartered Accountants | KreditScore',
     description: 'Exclusive for CAs! Get the highest loan amount with special interest rates. Quick approval for Chartered Accountants.',
     type: 'website',
-    url: 'https://kreditscore.com/ca-loan',
+    url: 'https://www.kreditscore.in/ca-loan',
     siteName: 'KreditScore',
     images: [
       {
@@ -47,7 +47,7 @@ export const metadata: Metadata = {
     images: ['/og-image-ca-loan.jpg'],
   },
   alternates: {
-    canonical: 'https://kreditscore.com/ca-loan',
+    canonical: 'https://www.kreditscore.in/ca-loan',
   },
   robots: {
     index: true,

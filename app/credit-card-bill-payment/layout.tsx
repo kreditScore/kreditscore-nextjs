@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     title: 'Pay Credit Card Bill with Low Interest Personal Loan | KreditScore',
     description: 'Stop paying 42% interest on credit cards! Convert to personal loan at 12% interest and save ₹30,000+ annually. Instant approval.',
     type: 'website',
-    url: 'https://kreditscore.com/credit-card-bill-payment',
+    url: 'https://www.kreditscore.in/credit-card-bill-payment',
     siteName: 'KreditScore',
     images: [
       {
@@ -42,7 +42,7 @@ export const metadata: Metadata = {
     images: ['/og-image-credit-card-bill.jpg'],
   },
   alternates: {
-    canonical: 'https://kreditscore.com/credit-card-bill-payment',
+    canonical: 'https://www.kreditscore.in/credit-card-bill-payment',
   },
   robots: {
     index: true,

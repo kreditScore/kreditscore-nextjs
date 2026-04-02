@@ -103,7 +103,6 @@ export default function SmallAppsLoanPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Form submitted:', formData);
     alert('Application submitted successfully! Our team will contact you within 24 hours.');
   };
 
@@ -141,7 +140,7 @@ export default function SmallAppsLoanPage() {
             },
             "interestRate": "14% p.a. onwards",
             "feesAndCommissionsSpecification": "Processing fee: 2% of loan amount",
-            "url": "https://kreditscore.com/small-apps-loan"
+            "url": "https://www.kreditscore.in/small-apps-loan"
           })
         }}
       />

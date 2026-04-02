@@ -26,19 +26,19 @@ import {
   IndianRupee,
   Calendar,
   Home,
-  Send,
   ArrowRight,
   ArrowLeft,
   CheckCircle2
 } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { useAuth } from '@/components/AuthProvider';
+import FirebasePhoneAuthInline from '@/components/FirebasePhoneAuthInline';
 
 export default function DebtConsolidationPage() {
-  // OTP and Form States
-  const [formStep, setFormStep] = useState(0); // 0: Name+Mobile, 1: OTP, 2: Personal, 3: Employer, 4: Office Address, 5: Home Address, 6: Loan Details
-  const [otpSent, setOtpSent] = useState(false);
-  const [otp, setOtp] = useState(['', '', '', '']);
-  const [otpTimer, setOtpTimer] = useState(30);
-  const [canResendOTP, setCanResendOTP] = useState(false);
+  const pathname = usePathname();
+  const { user, loading: authLoading } = useAuth();
+  // 0: Name+Mobile, 2: Personal … 6: Loan Details (OTP step removed — Firebase phone login)
+  const [formStep, setFormStep] = useState(0);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -94,15 +94,16 @@ export default function DebtConsolidationPage() {
   const indianCompanies = ['TCS', 'Infosys', 'Wipro', 'HCL Technologies', 'Tech Mahindra', 'Reliance Industries', 'HDFC Bank', 'ICICI Bank', 'SBI', 'Tata Motors', 'Mahindra & Mahindra', 'Adani Group', 'Larsen & Toubro', 'Asian Paints', 'Bajaj Auto'];
   const companyTypes = ['Private Limited', 'Public Limited', 'Government', 'MNC', 'Startup', 'Partnership', 'Proprietorship'];
 
-  // OTP Timer Effect
   useEffect(() => {
-    if (otpSent && otpTimer > 0) {
-      const timer = setTimeout(() => setOtpTimer(otpTimer - 1), 1000);
-      return () => clearTimeout(timer);
-    } else if (otpTimer === 0) {
-      setCanResendOTP(true);
+    if (!user) return;
+    const p = user.phoneNumber?.replace(/\D/g, '').slice(-10);
+    if (p && p.length === 10) {
+      setFormData((prev) => ({ ...prev, mobile: p }));
     }
-  }, [otpTimer, otpSent]);
+    if (user.displayName) {
+      setFormData((prev) => ({ ...prev, fullName: user.displayName ?? prev.fullName }));
+    }
+  }, [user]);
 
   // Form Handlers
   const handleInputChange = (field: string, value: string) => {
@@ -113,48 +114,10 @@ export default function DebtConsolidationPage() {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSendOTP = () => {
+  const handleContinueFromStep0 = (e: React.FormEvent) => {
+    e.preventDefault();
     if (formData.fullName && formData.mobile.length === 10) {
-      setOtpSent(true);
-      setOtpTimer(30);
-      setCanResendOTP(false);
-      setFormStep(1);
-      // Auto-fill OTP for demo
-      setTimeout(() => {
-        setOtp(['1', '2', '3', '4']);
-      }, 500);
-      console.log('Sending OTP to:', formData.mobile);
-    }
-  };
-
-  const handleResendOTP = () => {
-    setOtpTimer(30);
-    setCanResendOTP(false);
-    setOtp(['', '', '', '']);
-    // Here you would call your OTP API again
-    console.log('Resending OTP to:', formData.mobile);
-  };
-
-  const handleOTPChange = (index: number, value: string) => {
-    if (value.length <= 1 && /^\d*$/.test(value)) {
-      const newOtp = [...otp];
-      newOtp[index] = value;
-      setOtp(newOtp);
-
-      // Auto-focus next input
-      if (value && index < 3) {
-        const nextInput = document.getElementById(`otp-${index + 1}`);
-        nextInput?.focus();
-      }
-    }
-  };
-
-  const handleVerifyOTP = () => {
-    const otpValue = otp.join('');
-    if (otpValue.length === 4) {
-      // Here you would verify OTP with backend
-      console.log('Verifying OTP:', otpValue);
-      setFormStep(2); // Move to Personal Details
+      setFormStep(2);
     }
   };
 
@@ -164,11 +127,12 @@ export default function DebtConsolidationPage() {
 
   const handlePrevStep = () => {
     if (formStep > 2) setFormStep(formStep - 1);
+    else if (formStep === 2) setFormStep(0);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Form submitted:', formData);
+    if (formStep !== 6) return;
     setIsSubmitted(true);
   };
 
@@ -222,7 +186,7 @@ export default function DebtConsolidationPage() {
             },
             "interestRate": "10.25% p.a. onwards",
             "feesAndCommissionsSpecification": "Processing fee: 2% of loan amount",
-            "url": "https://kreditscore.com/debt-consolidation"
+            "url": "https://www.kreditscore.in/debt-consolidation"
           })
         }}
       />
@@ -654,8 +618,12 @@ export default function DebtConsolidationPage() {
                     </p>
                   </motion.div>
                 </motion.div>
+              ) : authLoading ? (
+                <p className="text-center py-8 text-gray-600">Loading…</p>
+              ) : !user ? (
+                <FirebasePhoneAuthInline returnPath={pathname} />
               ) : (
-                <form onSubmit={handleSubmit}>
+                <form onSubmit={formStep === 0 ? handleContinueFromStep0 : handleSubmit}>
                   <AnimatePresence mode="wait">
                     {/* Step 0: Name + Mobile */}
                     {formStep === 0 && (
@@ -705,15 +673,14 @@ export default function DebtConsolidationPage() {
                       </div>
 
                       <motion.button
-                        type="button"
-                        onClick={handleSendOTP}
+                        type="submit"
                         disabled={!formData.fullName || formData.mobile.length !== 10}
                         className="w-full bg-gradient-to-r from-pink-600 to-fuchsia-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-pink-700 hover:to-fuchsia-700 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 transition-all duration-300 shadow-lg flex items-center justify-center space-x-2"
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                       >
-                        <span>Send OTP</span>
-                        <Send className="w-5 h-5" />
+                        <span>Continue</span>
+                        <ArrowRight className="w-5 h-5" />
                       </motion.button>
 
                       <p className="text-xs text-gray-500 text-center leading-relaxed">
@@ -722,73 +689,6 @@ export default function DebtConsolidationPage() {
                         {' '}and{' '}
                         <a href="/privacy" className="text-pink-600 hover:underline font-semibold">Privacy Policy</a>
                       </p>
-                    </motion.div>
-                  )}
-
-                  {/* Step 1: OTP Verification */}
-                  {formStep === 1 && (
-                    <motion.div
-                      key="step1"
-                      initial={{ opacity: 0, x: 50 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -50 }}
-                      transition={{ duration: 0.3 }}
-                      className="space-y-4"
-                    >
-                      <h3 className="text-lg font-semibold text-pink-700 mb-4">Verify OTP</h3>
-                      <p className="text-sm text-gray-600 mb-4">
-                        Enter the 4-digit OTP sent to {formData.mobile}
-                      </p>
-
-                      <div className="flex justify-center space-x-3 mb-4">
-                        {otp.map((digit, index) => (
-                          <input
-                            key={index}
-                            id={`otp-${index}`}
-                            type="text"
-                            value={digit}
-                            onChange={(e) => handleOTPChange(index, e.target.value)}
-                            className="w-14 h-14 text-center text-2xl font-bold border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all"
-                            maxLength={1}
-                          />
-                        ))}
-                      </div>
-
-                      <div className="text-center mb-4">
-                        {otpTimer > 0 ? (
-                          <p className="text-sm text-gray-600">
-                            Resend OTP in <span className="font-bold text-pink-600">{otpTimer}s</span>
-                          </p>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={handleResendOTP}
-                            className="text-sm text-pink-600 font-semibold hover:underline"
-                          >
-                            Resend OTP
-                          </button>
-                        )}
-                      </div>
-
-                      <motion.button
-                        type="button"
-                        onClick={handleVerifyOTP}
-                        disabled={otp.join('').length !== 4}
-                        className="w-full bg-gradient-to-r from-pink-600 to-fuchsia-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-pink-700 hover:to-fuchsia-700 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 transition-all duration-300 shadow-lg flex items-center justify-center space-x-2"
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        <span>Verify & Continue</span>
-                        <ArrowRight className="w-5 h-5" />
-                      </motion.button>
-
-                      <button
-                        type="button"
-                        onClick={() => setFormStep(0)}
-                        className="w-full text-gray-600 text-sm hover:underline mt-2"
-                      >
-                        Change Mobile Number
-                      </button>
                     </motion.div>
                   )}
 

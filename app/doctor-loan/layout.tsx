@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     title: 'Doctor Loan - Exclusive Rates for Medical Professionals | KreditScore',
     description: 'Special interest rates for doctors! Higher loan amounts, quick approval. Designed exclusively for medical professionals.',
     type: 'website',
-    url: 'https://kreditscore.com/doctor-loan',
+    url: 'https://www.kreditscore.in/doctor-loan',
     siteName: 'KreditScore',
     images: [
       {
@@ -47,7 +47,7 @@ export const metadata: Metadata = {
     images: ['/og-image-doctor-loan.jpg'],
   },
   alternates: {
-    canonical: 'https://kreditscore.com/doctor-loan',
+    canonical: 'https://www.kreditscore.in/doctor-loan',
   },
   robots: {
     index: true,

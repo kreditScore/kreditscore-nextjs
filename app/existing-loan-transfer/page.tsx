@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
 import { motion } from 'framer-motion';
 import Header from '@/components/Header';
 import CustomCursor from '@/components/CustomCursor';
+import { useLoanPageForm } from '@/lib/useLoanPageForm';
 import {
   FileText,
   CheckCircle,
@@ -26,101 +26,38 @@ import {
 } from 'lucide-react';
 
 export default function ExistingLoanTransferPage() {
-  // Form States
-  const [formStep, setFormStep] = useState(1);
-  const [formData, setFormData] = useState({
-    fullName: '',
-    email: '',
-    mobile: '',
-    panCard: '',
-    dob: '',
-    gender: '',
-    maritalStatus: '',
-    companyName: '',
-    companyType: '',
-    netSalary: '',
-    workEmail: '',
-    currentLoanBank: '',
-    currentAddress: '',
-    currentLandmark: '',
-    currentCity: '',
-    currentState: '',
-    currentPincode: '',
-    permanentAddress: '',
-    permanentLandmark: '',
-    permanentCity: '',
-    permanentState: '',
-    permanentPincode: '',
-    officeAddress: '',
-    officeLandmark: '',
-    officeCity: '',
-    officeState: '',
-    officePincode: ''
-  });
-
-  // Calculator State
-  const [loanAmount, setLoanAmount] = useState(500000);
-  const [interestRate, setInterestRate] = useState(12);
-  const [tenure, setTenure] = useState(36);
-
-  // Autocomplete States
-  const [showCitySuggestions, setShowCitySuggestions] = useState({ current: false, permanent: false, office: false });
-  const [showStateSuggestions, setShowStateSuggestions] = useState({ current: false, permanent: false, office: false });
-  const [showCompanySuggestions, setShowCompanySuggestions] = useState(false);
-  const [showCompanyTypeSuggestions, setShowCompanyTypeSuggestions] = useState(false);
-
-  // Sample data for autocomplete
-  const indianCities = ['Mumbai', 'Delhi', 'Bangalore', 'Hyderabad', 'Chennai', 'Kolkata', 'Pune', 'Ahmedabad', 'Jaipur', 'Surat', 'Lucknow', 'Kanpur', 'Nagpur', 'Indore', 'Thane', 'Bhopal', 'Visakhapatnam', 'Pimpri-Chinchwad', 'Patna', 'Vadodara'];
-  const indianStates = ['Maharashtra', 'Delhi', 'Karnataka', 'Telangana', 'Tamil Nadu', 'West Bengal', 'Gujarat', 'Rajasthan', 'Uttar Pradesh', 'Madhya Pradesh', 'Andhra Pradesh', 'Kerala', 'Punjab', 'Haryana', 'Bihar'];
-  const indianCompanies = ['TCS', 'Infosys', 'Wipro', 'HCL Technologies', 'Tech Mahindra', 'Reliance Industries', 'HDFC Bank', 'ICICI Bank', 'SBI', 'Tata Motors', 'Mahindra & Mahindra', 'Adani Group', 'Larsen & Toubro', 'Asian Paints', 'Bajaj Auto'];
-  const companyTypes = ['Private Limited', 'Public Limited', 'Government', 'MNC', 'Startup', 'Partnership', 'Proprietorship'];
-
-  // EMI Calculator
-  const calculateEMI = (principal: number, rate: number, time: number) => {
-    const r = rate / 12 / 100;
-    const n = time;
-    const emi = (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
-    return isNaN(emi) ? 0 : emi;
-  };
-
-  const emi = calculateEMI(loanAmount, interestRate, tenure);
-  const totalPayable = emi * tenure;
-  const totalInterest = totalPayable - loanAmount;
-
-  // Form Handlers
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleNextStep = () => {
-    if (formStep < 3) setFormStep(formStep + 1);
-  };
-
-  const handlePrevStep = () => {
-    if (formStep > 1) setFormStep(formStep - 1);
-  };
+  const {
+    formStep,
+    formData,
+    loanAmount,
+    interestRate,
+    tenure,
+    showCitySuggestions,
+    showStateSuggestions,
+    showCompanySuggestions,
+    showCompanyTypeSuggestions,
+    emi,
+    totalPayable,
+    totalInterest,
+    setLoanAmount,
+    setInterestRate,
+    setTenure,
+    setShowCitySuggestions,
+    setShowStateSuggestions,
+    setShowCompanySuggestions,
+    setShowCompanyTypeSuggestions,
+    handleInputChange,
+    handleNextStep,
+    handlePrevStep,
+    filterCities,
+    filterStates,
+    filterCompanies,
+    filterCompanyTypes
+  } = useLoanPageForm('currentLoanBank');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Form submitted:', formData);
     alert('Application submitted successfully! Our team will contact you within 24 hours.');
-  };
-
-  // Filter functions for autocomplete
-  const filterCities = (input: string) => {
-    return input ? indianCities.filter(city => city.toLowerCase().includes(input.toLowerCase())) : indianCities;
-  };
-
-  const filterStates = (input: string) => {
-    return input ? indianStates.filter(state => state.toLowerCase().includes(input.toLowerCase())) : indianStates;
-  };
-
-  const filterCompanies = (input: string) => {
-    return input ? indianCompanies.filter(company => company.toLowerCase().includes(input.toLowerCase())) : indianCompanies;
-  };
-
-  const filterCompanyTypes = (input: string) => {
-    return input ? companyTypes.filter(type => type.toLowerCase().includes(input.toLowerCase())) : companyTypes;
   };
 
   return (
@@ -139,7 +76,7 @@ export default function ExistingLoanTransferPage() {
               "name": "KreditScore"
             },
             "interestRate": "Starting from 9.25% p.a.",
-            "url": "https://kreditscore.com/existing-loan-transfer"
+            "url": "https://www.kreditscore.in/existing-loan-transfer"
           })
         }}
       />
