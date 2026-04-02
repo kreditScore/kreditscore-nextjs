@@ -32,12 +32,13 @@ import {
 } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
-import FirebasePhoneAuthInline from '@/components/FirebasePhoneAuthInline';
+import SupabaseAuthInline from '@/components/SupabaseAuthInline';
+import { getSupabaseDisplayName, getSupabasePhoneDigits } from '@/lib/supabase/user';
 
 export default function DebtConsolidationPage() {
   const pathname = usePathname();
   const { user, loading: authLoading } = useAuth();
-  // 0: Name+Mobile, 2: Personal … 6: Loan Details (OTP step removed — Firebase phone login)
+  // 0: Name+Mobile, 2: Personal … 6: Loan Details (Supabase phone login gate)
   const [formStep, setFormStep] = useState(0);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
@@ -96,12 +97,13 @@ export default function DebtConsolidationPage() {
 
   useEffect(() => {
     if (!user) return;
-    const p = user.phoneNumber?.replace(/\D/g, '').slice(-10);
+    const p = getSupabasePhoneDigits(user);
     if (p && p.length === 10) {
       setFormData((prev) => ({ ...prev, mobile: p }));
     }
-    if (user.displayName) {
-      setFormData((prev) => ({ ...prev, fullName: user.displayName ?? prev.fullName }));
+    const dn = getSupabaseDisplayName(user);
+    if (dn) {
+      setFormData((prev) => ({ ...prev, fullName: dn }));
     }
   }, [user]);
 
@@ -621,7 +623,7 @@ export default function DebtConsolidationPage() {
               ) : authLoading ? (
                 <p className="text-center py-8 text-gray-600">Loading…</p>
               ) : !user ? (
-                <FirebasePhoneAuthInline returnPath={pathname} />
+                <SupabaseAuthInline returnPath={pathname} />
               ) : (
                 <form onSubmit={formStep === 0 ? handleContinueFromStep0 : handleSubmit}>
                   <AnimatePresence mode="wait">

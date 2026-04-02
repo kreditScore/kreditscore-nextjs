@@ -8,7 +8,8 @@ import CustomCursor from '@/components/CustomCursor';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
-import FirebasePhoneAuthInline from '@/components/FirebasePhoneAuthInline';
+import SupabaseAuthInline from '@/components/SupabaseAuthInline';
+import { getSupabaseDisplayName, getSupabasePhoneDigits } from '@/lib/supabase/user';
 
 export default function ApplyLoanPage() {
   const router = useRouter();
@@ -200,9 +201,10 @@ export default function ApplyLoanPage() {
 
   useEffect(() => {
     if (!user) return;
-    const p = user.phoneNumber?.replace(/\D/g, '').slice(-10);
+    const p = getSupabasePhoneDigits(user);
     if (p && p.length === 10) setMobile(p);
-    if (user.displayName) setName(user.displayName);
+    const dn = getSupabaseDisplayName(user);
+    if (dn) setName(dn);
     setFormStep(1);
   }, [user]);
 
@@ -591,7 +593,7 @@ export default function ApplyLoanPage() {
                         <p className="text-center text-sm text-gray-500 py-6">Loading…</p>
                       )}
                       {!authLoading && !user && (
-                        <FirebasePhoneAuthInline returnPath={pathname} />
+                        <SupabaseAuthInline returnPath={pathname} />
                       )}
                       {!authLoading && user && (
                       <AnimatePresence mode="wait">

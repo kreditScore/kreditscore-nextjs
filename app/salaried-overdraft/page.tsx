@@ -37,12 +37,13 @@ import {
 } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
-import FirebasePhoneAuthInline from '@/components/FirebasePhoneAuthInline';
+import SupabaseAuthInline from '@/components/SupabaseAuthInline';
+import { getSupabaseDisplayName, getSupabasePhoneDigits } from '@/lib/supabase/user';
 
 export default function SalariedOverdraftPage() {
   const pathname = usePathname();
   const { user, loading: authLoading } = useAuth();
-  // Form Steps: 0 = Name+Mobile, 2 = Personal, 3 = Employer, 4 = Office Address, 5 = Home Address, 6 = OD Details (OTP step removed — use Firebase login)
+  // Form Steps: 0 = Name+Mobile, 2 = Personal … 6 = OD (Supabase login gate)
   const [formStep, setFormStep] = useState(0);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
@@ -99,12 +100,13 @@ export default function SalariedOverdraftPage() {
 
   useEffect(() => {
     if (!user) return;
-    const p = user.phoneNumber?.replace(/\D/g, '').slice(-10);
+    const p = getSupabasePhoneDigits(user);
     if (p && p.length === 10) {
       setFormData((prev) => ({ ...prev, mobile: p }));
     }
-    if (user.displayName) {
-      setFormData((prev) => ({ ...prev, fullName: user.displayName ?? prev.fullName }));
+    const dn = getSupabaseDisplayName(user);
+    if (dn) {
+      setFormData((prev) => ({ ...prev, fullName: dn }));
     }
   }, [user]);
 
@@ -696,7 +698,7 @@ export default function SalariedOverdraftPage() {
                 ) : authLoading ? (
                   <p className="text-center py-8 text-gray-600">Loading…</p>
                 ) : !user ? (
-                  <FirebasePhoneAuthInline returnPath={pathname} />
+                  <SupabaseAuthInline returnPath={pathname} />
                 ) : (
                   <AnimatePresence mode="wait">
                     <motion.form

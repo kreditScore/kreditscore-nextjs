@@ -7,7 +7,6 @@ export type LeadPayload = {
   amount?: string;
   pan?: string;
   salary?: string;
-  /** Logged-in account vs actual borrower */
   applicantFor?: 'self' | 'other';
   applicantName?: string;
   applicantMobile?: string;
@@ -40,13 +39,14 @@ const getUtmParams = () => {
   };
 };
 
-async function getOptionalIdToken(): Promise<string | undefined> {
+async function getOptionalAccessToken(): Promise<string | undefined> {
   if (typeof window === 'undefined') return undefined;
   try {
-    const { getFirebaseAuth } = await import('@/lib/firebase');
-    const u = getFirebaseAuth()?.currentUser;
-    if (!u) return undefined;
-    return u.getIdToken();
+    const { getSupabaseBrowserClient } = await import('@/lib/supabase/client');
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return undefined;
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.access_token;
   } catch {
     return undefined;
   }
@@ -58,16 +58,17 @@ export const captureLead = (payload: LeadPayload) => {
   }
 
   void (async () => {
-    const idToken = await getOptionalIdToken();
+    const accessToken = await getOptionalAccessToken();
     let accountUid: string | undefined;
     let accountEmail: string | undefined;
     let accountPhone: string | undefined;
     try {
-      const { getFirebaseAuth } = await import('@/lib/firebase');
-      const u = getFirebaseAuth()?.currentUser;
-      accountUid = u?.uid;
+      const { getSupabaseBrowserClient } = await import('@/lib/supabase/client');
+      const supabase = getSupabaseBrowserClient();
+      const u = supabase ? (await supabase.auth.getUser()).data.user : null;
+      accountUid = u?.id;
       accountEmail = u?.email ?? undefined;
-      accountPhone = u?.phoneNumber ?? undefined;
+      accountPhone = u?.phone ?? undefined;
     } catch {
       /* ignore */
     }
@@ -76,7 +77,7 @@ export const captureLead = (payload: LeadPayload) => {
       accountUid?: string;
       accountEmail?: string;
       accountPhone?: string;
-      idToken?: string;
+      accessToken?: string;
     } = {
       ...payload,
       ...getUtmParams(),
@@ -107,7 +108,7 @@ export const captureLead = (payload: LeadPayload) => {
       body: JSON.stringify({
         type: 'lead',
         ...record,
-        ...(idToken ? { idToken } : {}),
+        ...(accessToken ? { accessToken } : {}),
       }),
     }).catch(() => undefined);
   })();

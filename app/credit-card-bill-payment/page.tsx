@@ -24,7 +24,8 @@ import { usePathname } from 'next/navigation';
 import { captureLead } from '@/lib/leadCapture';
 import { useAuth } from '@/components/AuthProvider';
 import ApplicantRelationFields from '@/components/ApplicantRelationFields';
-import FirebasePhoneAuthInline from '@/components/FirebasePhoneAuthInline';
+import SupabaseAuthInline from '@/components/SupabaseAuthInline';
+import { getSupabaseDisplayName, getSupabasePhoneDigits } from '@/lib/supabase/user';
 import { isValidIndianMobile } from '@/lib/validation';
 
 const formatINR = (n: number) =>
@@ -50,9 +51,10 @@ export default function CreditCardBillPaymentPage() {
 
   useEffect(() => {
     if (!user) return;
-    const p = user.phoneNumber?.replace(/\D/g, '').slice(-10);
+    const p = getSupabasePhoneDigits(user);
     if (p && p.length === 10) setMobile(p);
-    if (user.displayName) setName(user.displayName);
+    const dn = getSupabaseDisplayName(user);
+    if (dn) setName(dn);
   }, [user]);
 
   const { ccMonthly, plMonthly, monthlySave, annualSave } = useMemo(() => {
@@ -250,7 +252,7 @@ export default function CreditCardBillPaymentPage() {
                         <p className="text-center text-sm text-gray-500 py-6">Loading…</p>
                       )}
                       {!authLoading && !user && (
-                        <FirebasePhoneAuthInline returnPath={pathname} />
+                        <SupabaseAuthInline returnPath={pathname} />
                       )}
                       {!authLoading && user && (
                         <form onSubmit={handleSubmit} className="space-y-3">

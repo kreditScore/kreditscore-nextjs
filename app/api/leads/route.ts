@@ -1,13 +1,15 @@
 import { NextResponse } from 'next/server';
 import { isDuplicateMobile, isIpRateLimited } from '@/lib/rateLimitMemory';
 import { isValidIndianMobile, normalizeIndianMobile } from '@/lib/validation';
-import { verifyFirebaseIdToken } from '@/lib/firebaseAdmin';
+import { verifySupabaseAccessToken } from '@/lib/supabase/verifyAccessToken';
 
 type LeadRequest = {
   type: 'lead';
   mobile?: string;
+  /** Supabase session access_token (JWT) */
+  accessToken?: string;
+  /** @deprecated alias for accessToken (older clients) */
   idToken?: string;
-  /** When true, duplicate-mobile window is skipped (e.g. after OTP or staff override) */
   skipDuplicateCheck?: boolean;
   [key: string]: unknown;
 };
@@ -39,16 +41,22 @@ export async function POST(request: Request) {
       );
     }
 
-    let firebaseUid: string | undefined;
+    const rawToken =
+      typeof body.accessToken === 'string' && body.accessToken.length > 20
+        ? body.accessToken
+        : typeof body.idToken === 'string' && body.idToken.length > 20
+          ? body.idToken
+          : '';
+
+    let supabaseUid: string | undefined;
     let tokenOk = false;
-    const hasIdToken = typeof body.idToken === 'string' && body.idToken.length > 20;
-    if (hasIdToken) {
-      const verified = await verifyFirebaseIdToken(body.idToken as string);
+
+    if (rawToken) {
+      const verified = await verifySupabaseAccessToken(rawToken);
       if (verified) {
-        firebaseUid = verified.uid;
+        supabaseUid = verified.uid;
         tokenOk = true;
-      } else if (!process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
-        // No Admin SDK: treat presence of client idToken as logged-in (MVP). Prefer setting FIREBASE_SERVICE_ACCOUNT_JSON on the server.
+      } else if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
         tokenOk = true;
       }
     }
@@ -72,7 +80,7 @@ export async function POST(request: Request) {
 
     const enriched = {
       ...body,
-      ...(firebaseUid ? { firebaseUid, idTokenVerified: true } : { idTokenVerified: false }),
+      ...(supabaseUid ? { supabaseUid, accessTokenVerified: true } : { accessTokenVerified: false }),
       serverReceivedAt: new Date().toISOString(),
       clientIp: ip,
     };

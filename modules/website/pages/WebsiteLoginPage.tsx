@@ -1,22 +1,13 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Phone, Lock, ArrowRight, Chrome, Mail } from 'lucide-react';
 import Header from '@/components/Header';
 import CustomCursor from '@/components/CustomCursor';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import {
-  GoogleAuthProvider,
-  RecaptchaVerifier,
-  signInWithEmailAndPassword,
-  signInWithPhoneNumber,
-  signInWithPopup,
-  createUserWithEmailAndPassword,
-  type ConfirmationResult,
-} from 'firebase/auth';
-import { getFirebaseAuth, isFirebaseConfigured } from '@/lib/firebase';
+import { getSupabaseBrowserClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import { isValidIndianMobile, normalizeIndianMobile } from '@/lib/validation';
 
 type Tab = 'phone' | 'email';
@@ -34,9 +25,6 @@ export default function WebsiteLoginPage() {
   const [countdown, setCountdown] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  const confirmationRef = useRef<ConfirmationResult | null>(null);
-  const recaptchaRef = useRef<RecaptchaVerifier | null>(null);
-
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [emailMode, setEmailMode] = useState<'signin' | 'signup'>('signin');
@@ -48,34 +36,13 @@ export default function WebsiteLoginPage() {
     }
   }, [countdown]);
 
-  useEffect(() => {
-    return () => {
-      try {
-        recaptchaRef.current?.clear();
-      } catch {
-        /* ignore */
-      }
-      recaptchaRef.current = null;
-    };
-  }, []);
-
-  const ensureRecaptcha = () => {
-    const auth = getFirebaseAuth();
-    if (!auth) throw new Error('Firebase not configured');
-    if (!recaptchaRef.current) {
-      recaptchaRef.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
-        size: 'invisible',
-      });
-    }
-    return recaptchaRef.current;
-  };
-
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!getFirebaseAuth()) {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) {
       setError(
-        'Firebase is not configured. In Vercel → Project → Settings → Environment Variables, add all NEXT_PUBLIC_FIREBASE_* keys from Firebase Console, then Redeploy.'
+        'Supabase not configured. In Vercel add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY from Supabase → Project Settings → API.'
       );
       return;
     }
@@ -86,22 +53,14 @@ export default function WebsiteLoginPage() {
     }
     setIsLoading(true);
     try {
-      const auth = getFirebaseAuth()!;
-      const appVerifier = ensureRecaptcha();
-      const phoneE164 = `+91${digits}`;
-      const confirmation = await signInWithPhoneNumber(auth, phoneE164, appVerifier);
-      confirmationRef.current = confirmation;
+      const { error: err } = await supabase.auth.signInWithOtp({
+        phone: `+91${digits}`,
+      });
+      if (err) throw err;
       setOtpSent(true);
       setCountdown(30);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to send OTP';
-      setError(msg);
-      try {
-        recaptchaRef.current?.clear();
-      } catch {
-        /* ignore */
-      }
-      recaptchaRef.current = null;
+      setError(err instanceof Error ? err.message : 'Failed to send OTP');
     } finally {
       setIsLoading(false);
     }
@@ -110,13 +69,24 @@ export default function WebsiteLoginPage() {
   const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!confirmationRef.current || otp.length < 4) return;
+    if (otp.length < 6) {
+      setError('Enter the OTP from SMS.');
+      return;
+    }
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+    const digits = normalizeIndianMobile(mobile);
     setIsLoading(true);
     try {
-      await confirmationRef.current.confirm(otp);
+      const { error: err } = await supabase.auth.verifyOtp({
+        phone: `+91${digits}`,
+        token: otp,
+        type: 'sms',
+      });
+      if (err) throw err;
       router.push(returnUrl);
-    } catch {
-      setError('Invalid OTP. Please try again.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Invalid OTP. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -124,22 +94,21 @@ export default function WebsiteLoginPage() {
 
   const handleGoogle = async () => {
     setError(null);
-    if (!getFirebaseAuth()) {
-      setError(
-        'Firebase is not configured. Add NEXT_PUBLIC_FIREBASE_* variables in Vercel (from Firebase Console → Project settings → Your apps), then Redeploy.'
-      );
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) {
+      setError('Supabase not configured. Add NEXT_PUBLIC_SUPABASE_* env vars in Vercel.');
       return;
     }
     setIsLoading(true);
     try {
-      const auth = getFirebaseAuth()!;
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-      router.push(returnUrl);
+      const redirectTo = `${window.location.origin}/auth/callback?returnUrl=${encodeURIComponent(returnUrl)}`;
+      const { error: err } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo },
+      });
+      if (err) throw err;
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Google sign-in failed';
-      setError(msg);
-    } finally {
+      setError(err instanceof Error ? err.message : 'Google sign-in failed');
       setIsLoading(false);
     }
   };
@@ -151,22 +120,29 @@ export default function WebsiteLoginPage() {
       setError('Email and password (min 6 chars) required.');
       return;
     }
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) {
+      setError('Supabase not configured.');
+      return;
+    }
     setIsLoading(true);
     try {
-      const auth = getFirebaseAuth();
-      if (!auth) {
-        setError('Firebase is not configured. Add env vars in Vercel and redeploy.');
-        return;
-      }
       if (emailMode === 'signup') {
-        await createUserWithEmailAndPassword(auth, email.trim(), password);
+        const { error: err } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+        });
+        if (err) throw err;
       } else {
-        await signInWithEmailAndPassword(auth, email.trim(), password);
+        const { error: err } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
+        if (err) throw err;
       }
       router.push(returnUrl);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Email sign-in failed';
-      setError(msg);
+      setError(err instanceof Error ? err.message : 'Email sign-in failed');
     } finally {
       setIsLoading(false);
     }
@@ -176,7 +152,6 @@ export default function WebsiteLoginPage() {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
       <CustomCursor />
       <Header />
-      <div id="recaptcha-container" />
 
       <motion.div
         initial={{ opacity: 0, x: 100 }}
@@ -212,17 +187,19 @@ export default function WebsiteLoginPage() {
               </span>
             </h1>
             <p className="text-center text-sm text-gray-600 mb-8">
-              One login — apply on any page without OTP again. Use phone OTP, Google, or email.
+              One login — apply on any page. Phone OTP, Google, or email (Supabase).
             </p>
 
-            {!isFirebaseConfigured() && (
+            {!isSupabaseConfigured() && (
               <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-left text-xs text-amber-950">
-                <p className="font-semibold mb-1">Firebase not connected to this deployment</p>
+                <p className="font-semibold mb-1">Supabase not connected</p>
                 <p className="leading-relaxed">
-                  Add all <span className="font-mono">NEXT_PUBLIC_FIREBASE_*</span> variables in Vercel (copy from
-                  Firebase Console → Project settings → Your apps → Web app config), then Redeploy. In Firebase:
-                  Authentication → Sign-in method: enable Phone, Google, and Email/Password as needed. Add your
-                  production domain under Authentication → Settings → Authorized domains.
+                  Vercel → Environment Variables: add{' '}
+                  <span className="font-mono">NEXT_PUBLIC_SUPABASE_URL</span> and{' '}
+                  <span className="font-mono">NEXT_PUBLIC_SUPABASE_ANON_KEY</span> from Supabase → Project Settings →
+                  API. For server lead verification add <span className="font-mono">SUPABASE_SERVICE_ROLE_KEY</span>{' '}
+                  (secret). Enable Phone, Google, and Email in Supabase → Authentication → Providers. Add{' '}
+                  <span className="font-mono">https://your-domain.com/auth/callback</span> to Redirect URLs.
                 </p>
               </div>
             )}
@@ -329,10 +306,10 @@ export default function WebsiteLoginPage() {
                     <input
                       type="text"
                       value={otp}
-                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                      placeholder="6-digit OTP"
+                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                      placeholder="OTP from SMS"
                       className="block w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-center text-2xl tracking-widest font-semibold"
-                      maxLength={6}
+                      maxLength={8}
                       required
                     />
                   </div>
@@ -345,7 +322,6 @@ export default function WebsiteLoginPage() {
                         onClick={() => {
                           setOtpSent(false);
                           setOtp('');
-                          confirmationRef.current = null;
                         }}
                         className="text-blue-600 hover:text-blue-700 font-medium"
                       >
@@ -358,7 +334,7 @@ export default function WebsiteLoginPage() {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   type="submit"
-                  disabled={otp.length < 4 || isLoading}
+                  disabled={otp.length < 6 || isLoading}
                   className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:from-green-700 hover:to-green-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isLoading ? (

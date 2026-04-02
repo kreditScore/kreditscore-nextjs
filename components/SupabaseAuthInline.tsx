@@ -1,49 +1,27 @@
 'use client';
 
-import { useEffect, useId, useRef, useState } from 'react';
-import {
-  RecaptchaVerifier,
-  signInWithPhoneNumber,
-  type ConfirmationResult,
-} from 'firebase/auth';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Phone, ArrowRight, Lock } from 'lucide-react';
-import { getFirebaseAuth, isFirebaseConfigured } from '@/lib/firebase';
+import { getSupabaseBrowserClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import { isValidIndianMobile, normalizeIndianMobile } from '@/lib/validation';
 
 type Props = {
-  /** Used for "Continue with Google / Email" link */
   returnPath?: string;
   className?: string;
 };
 
-export default function FirebasePhoneAuthInline({ returnPath, className = '' }: Props) {
+export default function SupabaseAuthInline({ returnPath, className = '' }: Props) {
   const pathname = usePathname();
   const ret = returnPath ?? pathname ?? '/';
-  const domId = useId().replace(/:/g, '');
-  const containerId = `recaptcha-inline-${domId}`;
 
   const [mobile, setMobile] = useState('');
   const [otp, setOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const confirmationRef = useRef<ConfirmationResult | null>(null);
-  const recaptchaRef = useRef<RecaptchaVerifier | null>(null);
 
-  useEffect(() => {
-    return () => {
-      try {
-        recaptchaRef.current?.clear();
-      } catch {
-        /* ignore */
-      }
-      recaptchaRef.current = null;
-    };
-  }, []);
-
-  /** Web OTP API — Android Chrome auto-reads SMS when SMS includes origin + #code (Firebase format). */
   useEffect(() => {
     if (!otpSent || typeof window === 'undefined') return;
     if (!('OTPCredential' in window)) return;
@@ -51,7 +29,9 @@ export default function FirebasePhoneAuthInline({ returnPath, className = '' }: 
     const ac = new AbortController();
     const t = window.setTimeout(() => {
       type NavCred = Navigator & {
-        credentials?: { get: (o: { otp: { transport: string[] }; signal: AbortSignal }) => Promise<{ code?: string } | null> };
+        credentials?: {
+          get: (o: { otp: { transport: string[] }; signal: AbortSignal }) => Promise<{ code?: string } | null>;
+        };
       };
       const nav = navigator as NavCred;
       nav.credentials
@@ -61,7 +41,7 @@ export default function FirebasePhoneAuthInline({ returnPath, className = '' }: 
         })
         .then((cred) => {
           const code = cred && 'code' in cred ? (cred as { code?: string }).code : undefined;
-          if (code) setOtp(String(code).replace(/\D/g, '').slice(0, 6));
+          if (code) setOtp(String(code).replace(/\D/g, '').slice(0, 8));
         })
         .catch(() => undefined);
     }, 500);
@@ -72,22 +52,12 @@ export default function FirebasePhoneAuthInline({ returnPath, className = '' }: 
     };
   }, [otpSent]);
 
-  const ensureRecaptcha = () => {
-    const auth = getFirebaseAuth();
-    if (!auth) throw new Error('Firebase not configured');
-    if (!recaptchaRef.current) {
-      recaptchaRef.current = new RecaptchaVerifier(auth, containerId, {
-        size: 'invisible',
-      });
-    }
-    return recaptchaRef.current;
-  };
-
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!getFirebaseAuth()) {
-      setError('Firebase env missing. Add NEXT_PUBLIC_FIREBASE_* in Vercel and redeploy.');
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) {
+      setError('Supabase not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in Vercel.');
       return;
     }
     const digits = normalizeIndianMobile(mobile);
@@ -97,21 +67,14 @@ export default function FirebasePhoneAuthInline({ returnPath, className = '' }: 
     }
     setLoading(true);
     try {
-      const auth = getFirebaseAuth()!;
-      const appVerifier = ensureRecaptcha();
-      const confirmation = await signInWithPhoneNumber(auth, `+91${digits}`, appVerifier);
-      confirmationRef.current = confirmation;
+      const { error: err } = await supabase.auth.signInWithOtp({
+        phone: `+91${digits}`,
+      });
+      if (err) throw err;
       setOtpSent(true);
       setOtp('');
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to send OTP';
-      setError(msg);
-      try {
-        recaptchaRef.current?.clear();
-      } catch {
-        /* ignore */
-      }
-      recaptchaRef.current = null;
+      setError(err instanceof Error ? err.message : 'Failed to send OTP');
     } finally {
       setLoading(false);
     }
@@ -120,30 +83,39 @@ export default function FirebasePhoneAuthInline({ returnPath, className = '' }: 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!confirmationRef.current || otp.length < 6) {
-      setError('Enter the 6-digit OTP from SMS.');
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+    if (otp.length < 6) {
+      setError('Enter the OTP from SMS.');
       return;
     }
     setLoading(true);
     try {
-      await confirmationRef.current.confirm(otp);
-    } catch {
-      setError('Invalid OTP. Try again.');
+      const digits = normalizeIndianMobile(mobile);
+      const { error: err } = await supabase.auth.verifyOtp({
+        phone: `+91${digits}`,
+        token: otp,
+        type: 'sms',
+      });
+      if (err) throw err;
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Invalid OTP. Try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  if (!isFirebaseConfigured()) {
+  if (!isSupabaseConfigured()) {
     return (
       <div className={`rounded-xl border border-amber-200 bg-amber-50 p-3 sm:p-4 text-xs text-amber-950 ${className}`}>
-        <p className="font-semibold mb-1">Mobile login not available</p>
+        <p className="font-semibold mb-1">Login not configured</p>
         <p className="mb-2 leading-relaxed">
-          Add Firebase web config to Vercel: all <span className="font-mono">NEXT_PUBLIC_FIREBASE_*</span> variables
-          from Firebase Console → Project settings → Your apps, then Redeploy.
+          Add <span className="font-mono">NEXT_PUBLIC_SUPABASE_URL</span> and{' '}
+          <span className="font-mono">NEXT_PUBLIC_SUPABASE_ANON_KEY</span> in Vercel (Supabase → Project Settings →
+          API), then Redeploy. Enable Phone provider in Supabase → Authentication → Providers.
         </p>
         <Link href={`/login?returnUrl=${encodeURIComponent(ret)}`} className="text-blue-700 font-semibold underline">
-          Try full login page
+          Open full login page
         </Link>
       </div>
     );
@@ -151,7 +123,6 @@ export default function FirebasePhoneAuthInline({ returnPath, className = '' }: 
 
   return (
     <div className={`rounded-xl border border-blue-100 bg-blue-50/40 p-3 sm:p-4 ${className}`}>
-      <div id={containerId} />
       <p className="text-xs font-semibold text-gray-800 mb-2">Verify mobile (SMS OTP)</p>
       {error && <p className="text-xs text-red-600 mb-2">{error}</p>}
 
@@ -194,16 +165,16 @@ export default function FirebasePhoneAuthInline({ returnPath, className = '' }: 
               inputMode="numeric"
               autoComplete="one-time-code"
               value={otp}
-              onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              placeholder="6-digit OTP"
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 8))}
+              placeholder="OTP from SMS"
               className="w-full pl-8 pr-2 py-2 border rounded-lg text-center text-lg tracking-widest font-semibold"
-              maxLength={6}
+              maxLength={8}
               required
             />
           </div>
           <button
             type="submit"
-            disabled={otp.length !== 6 || loading}
+            disabled={otp.length < 6 || loading}
             className="w-full py-2 rounded-lg bg-green-600 text-white text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-1"
           >
             {loading ? (
@@ -220,13 +191,6 @@ export default function FirebasePhoneAuthInline({ returnPath, className = '' }: 
             onClick={() => {
               setOtpSent(false);
               setOtp('');
-              confirmationRef.current = null;
-              try {
-                recaptchaRef.current?.clear();
-              } catch {
-                /* ignore */
-              }
-              recaptchaRef.current = null;
             }}
           >
             Change number
