@@ -37,3 +37,11 @@ yarn-error.log*
 next-env.d.ts
 
 .vercel
+
+# large binary / database files — never commit these
+*.db
+*.sqlite
+*.sqlite3
+
+# local fix folders — not part of production
+kreditscore-fixes/
