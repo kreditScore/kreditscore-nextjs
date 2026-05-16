@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     siteName: 'KreditScore',
     images: [
       {
-        url: '/og-image-pre-approved-loan.jpg',
+        url: '/og-image.jpg',
         width: 1200,
         height: 630,
         alt: 'Pre-Approved Personal Loan - KreditScore',
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Pre-Approved Personal Loan - Instant Approval | KreditScore',
     description: 'Get instant pre-approved personal loans up to ₹25 lakh without income documents.',
-    images: ['/og-image-pre-approved-loan.jpg'],
+    images: ['/og-image.jpg'],
   },
   alternates: {
     canonical: `${SITE_URL}/pre-approved-personal-loan`,

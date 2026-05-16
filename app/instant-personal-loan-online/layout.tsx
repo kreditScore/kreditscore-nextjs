@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     siteName: 'KreditScore',
     images: [
       {
-        url: '/og-image-instant-loan.jpg',
+        url: '/og-image.jpg',
         width: 1200,
         height: 630,
         alt: 'Instant Personal Loan Online - KreditScore',
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Instant Personal Loan Online - Quick Approval | KreditScore',
     description: 'Get instant personal loan online from ₹50K to ₹25 lakh with minimal documentation. Apply now!',
-    images: ['/og-image-instant-loan.jpg'],
+    images: ['/og-image.jpg'],
   },
   alternates: {
     canonical: `${SITE_URL}/instant-personal-loan-online`,

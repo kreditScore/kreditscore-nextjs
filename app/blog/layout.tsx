@@ -15,6 +15,19 @@ export const metadata: Metadata = {
     url: `${SITE_URL}/blog`,
     siteName: "KreditScore",
     type: "website",
+    images: [
+      {
+        url: "/og-image.jpg",
+        width: 1200,
+        height: 630,
+        alt: "KreditScore Blog — Loans, Credit Score, Personal Finance Tips",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Blog & Articles | KreditScore — Loans, Credit Score, Tips",
+    description: "Plain-English articles on credit scores, personal loans, documents, and money tips from KreditScore.",
   },
   alternates: {
     canonical: `${SITE_URL}/blog`,

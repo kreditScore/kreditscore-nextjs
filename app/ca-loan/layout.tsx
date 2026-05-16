@@ -34,7 +34,7 @@ export const metadata: Metadata = {
     siteName: 'KreditScore',
     images: [
       {
-        url: '/og-image-ca-loan.jpg',
+        url: '/og-image.jpg',
         width: 1200,
         height: 630,
         alt: 'CA Loan - KreditScore',
@@ -45,7 +45,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'CA Loan - Exclusive for Chartered Accountants | KreditScore',
     description: 'Highest loan amount with special rates for CAs!',
-    images: ['/og-image-ca-loan.jpg'],
+    images: ['/og-image.jpg'],
   },
   alternates: {
     canonical: `${SITE_URL}/ca-loan`,

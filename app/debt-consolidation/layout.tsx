@@ -34,7 +34,7 @@ export const metadata: Metadata = {
     siteName: 'KreditScore',
     images: [
       {
-        url: '/og-image-debt-consolidation.jpg',
+        url: '/og-image.jpg',
         width: 1200,
         height: 630,
         alt: 'Debt Consolidation Loan - KreditScore',
@@ -45,7 +45,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Debt Consolidation Loan - Single EMI for All Debts | KreditScore',
     description: 'Consolidate PL+CC+Apps Loan+OD into one EMI. Reduce monthly burden by 50%!',
-    images: ['/og-image-debt-consolidation.jpg'],
+    images: ['/og-image.jpg'],
   },
   alternates: {
     canonical: `${SITE_URL}/debt-consolidation`,

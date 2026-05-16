@@ -34,7 +34,7 @@ export const metadata: Metadata = {
     siteName: 'KreditScore',
     images: [
       {
-        url: '/og-image-teacher-loan.jpg',
+        url: '/og-image.jpg',
         width: 1200,
         height: 630,
         alt: 'Teacher Loan - KreditScore',
@@ -45,7 +45,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Teacher Loan - Zero PF for Educators | KreditScore',
     description: 'Exclusive for teachers! Zero processing fee + special rates!',
-    images: ['/og-image-teacher-loan.jpg'],
+    images: ['/og-image.jpg'],
   },
   alternates: {
     canonical: `${SITE_URL}/teacher-loan`,

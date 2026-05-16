@@ -13,9 +13,50 @@ const poppins = Poppins({
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
+  applicationName: "KreditScore",
   title: "KreditScore - Personal Loan, Credit Score, Pre-Approved Loans | Instant Approval India",
   description: "Get instant personal loans, check credit score free, pre-approved loans, doctor loans, teacher loans, CA loans. Convert credit card bill to personal loan. Best rates in India.",
-  keywords: "personal loan, credit score, CIBIL score, pre approved loan, fresh personal loan, doctor loan, teacher loan, CA loan, pay credit card bill, small app loan, debt consolidation, balance transfer",
+  keywords: [
+    "personal loan",
+    "credit score",
+    "CIBIL score",
+    "pre approved loan",
+    "fresh personal loan",
+    "doctor loan",
+    "teacher loan",
+    "CA loan",
+    "pay credit card bill",
+    "small app loan",
+    "debt consolidation",
+    "balance transfer",
+    "instant loan India",
+    "personal loan online",
+  ],
+  openGraph: {
+    title: "KreditScore - Instant Personal Loans & Credit Score India",
+    description: "Get instant personal loans up to ₹25 lakh. Check credit score free. Pre-approved loans, doctor loans, teacher loans, CA loans. Best rates from 20+ banks.",
+    type: "website",
+    url: SITE_URL,
+    siteName: "KreditScore",
+    images: [
+      {
+        url: "/og-image.jpg",
+        width: 1200,
+        height: 630,
+        alt: "KreditScore - Instant Personal Loans India",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "KreditScore - Instant Personal Loans & Credit Score India",
+    description: "Get instant personal loans up to ₹25 lakh. Check credit score free. Best rates from 20+ banks in India.",
+    images: ["/og-image.jpg"],
+  },
+  alternates: {
+    canonical: SITE_URL,
+  },
+  robots: { index: true, follow: true },
 };
 
 export default function RootLayout({
@@ -24,7 +65,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="hi">
+    <html lang="en-IN">
       <body className={poppins.className}>
         <AuthProvider>
           {children}

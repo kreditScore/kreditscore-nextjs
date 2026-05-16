@@ -34,7 +34,7 @@ export const metadata: Metadata = {
     siteName: 'KreditScore',
     images: [
       {
-        url: '/og-image-doctor-loan.jpg',
+        url: '/og-image.jpg',
         width: 1200,
         height: 630,
         alt: 'Doctor Loan - KreditScore',
@@ -45,7 +45,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Doctor Loan - Special Rates for Doctors | KreditScore',
     description: 'Exclusive loan for medical professionals with special rates!',
-    images: ['/og-image-doctor-loan.jpg'],
+    images: ['/og-image.jpg'],
   },
   alternates: {
     canonical: `${SITE_URL}/doctor-loan`,

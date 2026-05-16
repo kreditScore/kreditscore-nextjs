@@ -34,7 +34,7 @@ export const metadata: Metadata = {
     siteName: 'KreditScore',
     images: [
       {
-        url: '/og-image-balance-transfer.jpg',
+        url: '/og-image.jpg',
         width: 1200,
         height: 630,
         alt: 'Balance Transfer Loan - KreditScore',
@@ -45,7 +45,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Balance Transfer Loan - Reduce EMI 50% | KreditScore',
     description: 'Transfer your loan, reduce EMI, save money!',
-    images: ['/og-image-balance-transfer.jpg'],
+    images: ['/og-image.jpg'],
   },
   alternates: {
     canonical: `${SITE_URL}/balance-transfer`,

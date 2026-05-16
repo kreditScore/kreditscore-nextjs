@@ -52,7 +52,81 @@ const LoanApplicationForm = ({ isOpen, onClose, loanType }: LoanApplicationFormP
     });
   };
 
+  const validateStep1 = (): boolean => {
+    const amount = Number(formData.loanAmount);
+    if (!formData.loanAmount || amount < 10000 || amount > 2500000) {
+      toast.error('Please enter a valid loan amount (₹10,000 - ₹25,00,000)');
+      return false;
+    }
+    if (!formData.city) {
+      toast.error('Please select your city');
+      return false;
+    }
+    const mobileRegex = /^[6-9]\d{9}$/;
+    if (!mobileRegex.test(formData.mobile)) {
+      toast.error('Please enter a valid 10-digit Indian mobile number');
+      return false;
+    }
+    const salary = Number(formData.netSalary);
+    if (!formData.netSalary || salary < 30000) {
+      toast.error('Minimum monthly salary required is ₹30,000');
+      return false;
+    }
+    return true;
+  };
+
+  const validateStep2 = (): boolean => {
+    if (!formData.fullName || formData.fullName.trim().length < 3) {
+      toast.error('Please enter your full name (minimum 3 characters)');
+      return false;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!formData.email || !emailRegex.test(formData.email)) {
+      toast.error('Please enter a valid email address');
+      return false;
+    }
+    if (!formData.dateOfBirth) {
+      toast.error('Please enter your date of birth');
+      return false;
+    }
+    if (formData.panNumber && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(formData.panNumber.toUpperCase())) {
+      toast.error('Invalid PAN format. Example: ABCDE1234F');
+      return false;
+    }
+    if (!formData.address || formData.address.trim().length < 10) {
+      toast.error('Please enter a complete address (minimum 10 characters)');
+      return false;
+    }
+    return true;
+  };
+
+  const validateStep3 = (): boolean => {
+    if (!formData.companyName || formData.companyName.trim().length < 2) {
+      toast.error('Please enter your company name');
+      return false;
+    }
+    if (!formData.designation || formData.designation.trim().length < 2) {
+      toast.error('Please enter your designation');
+      return false;
+    }
+    if (!formData.workExperience) {
+      toast.error('Please select your work experience');
+      return false;
+    }
+    if (!formData.officeAddress || formData.officeAddress.trim().length < 10) {
+      toast.error('Please enter a complete office address');
+      return false;
+    }
+    if (!agreedToTerms) {
+      toast.error('Please agree to the Terms & Conditions to proceed');
+      return false;
+    }
+    return true;
+  };
+
   const handleNext = () => {
+    if (currentStep === 1 && !validateStep1()) return;
+    if (currentStep === 2 && !validateStep2()) return;
     if (currentStep < 3) {
       setCurrentStep(currentStep + 1);
     }
@@ -66,13 +140,9 @@ const LoanApplicationForm = ({ isOpen, onClose, loanType }: LoanApplicationFormP
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!agreedToTerms) {
-      toast.error('Please agree to Terms & Conditions');
-      return;
-    }
-    console.log('Form submitted:', formData);
+    if (!validateStep3()) return;
     toast.success(
-      `Application submitted. We will contact you shortly at ${formData.mobile}.`
+      `Application submitted! We will contact you shortly at ${formData.mobile}.`
     );
     onClose();
     // Reset form

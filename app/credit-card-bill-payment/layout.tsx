@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     siteName: 'KreditScore',
     images: [
       {
-        url: '/og-image-credit-card-bill.jpg',
+        url: '/og-image.jpg',
         width: 1200,
         height: 630,
         alt: 'Pay Credit Card Bill with Personal Loan - KreditScore',
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Pay Credit Card Bill with Low Interest Personal Loan | KreditScore',
     description: 'Convert 42% credit card interest to 12% personal loan. Save ₹30,000+ annually!',
-    images: ['/og-image-credit-card-bill.jpg'],
+    images: ['/og-image.jpg'],
   },
   alternates: {
     canonical: `${SITE_URL}/credit-card-bill-payment`,
