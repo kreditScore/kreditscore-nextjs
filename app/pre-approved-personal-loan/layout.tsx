@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
   title: 'Pre-Approved Personal Loan - Instant Approval Without Income Proof | KreditScore',
@@ -19,7 +20,7 @@ export const metadata: Metadata = {
     title: 'Pre-Approved Personal Loan - Instant Approval | KreditScore',
     description: 'Get instant pre-approved personal loans up to ₹25 lakh without income documents. Apply now with just your credit score!',
     type: 'website',
-    url: 'https://kreditscore.com/pre-approved-personal-loan',
+    url: `${SITE_URL}/pre-approved-personal-loan`,
     siteName: 'KreditScore',
     images: [
       {
@@ -37,7 +38,7 @@ export const metadata: Metadata = {
     images: ['/og-image-pre-approved-loan.jpg'],
   },
   alternates: {
-    canonical: 'https://kreditscore.com/pre-approved-personal-loan',
+    canonical: `${SITE_URL}/pre-approved-personal-loan`,
   },
   robots: {
     index: true,

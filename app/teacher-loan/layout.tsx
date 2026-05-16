@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
   title: 'Teacher Loan - Special Rates for Educators with Zero Processing Fee | KreditScore',
@@ -29,7 +30,7 @@ export const metadata: Metadata = {
     title: 'Teacher Loan - Zero Processing Fee for Educators | KreditScore',
     description: 'Special loan for teachers! Zero processing fee + low interest rates. Designed exclusively for educators and teaching professionals.',
     type: 'website',
-    url: 'https://kreditscore.com/teacher-loan',
+    url: `${SITE_URL}/teacher-loan`,
     siteName: 'KreditScore',
     images: [
       {
@@ -47,7 +48,7 @@ export const metadata: Metadata = {
     images: ['/og-image-teacher-loan.jpg'],
   },
   alternates: {
-    canonical: 'https://kreditscore.com/teacher-loan',
+    canonical: `${SITE_URL}/teacher-loan`,
   },
   robots: {
     index: true,

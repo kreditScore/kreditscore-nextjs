@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
   title: 'Salaried Overdraft Facility - Withdraw When You Need | KreditScore',
@@ -29,7 +30,7 @@ export const metadata: Metadata = {
     title: 'Salaried Overdraft - Withdraw Anytime, Pay Interest Only on Used Amount | KreditScore',
     description: 'Access instant credit with salaried overdraft facility. Get up to 3x your monthly salary as credit limit. Pay interest only on amount used. Apply now!',
     type: 'website',
-    url: 'https://kreditscore.com/salaried-overdraft',
+    url: `${SITE_URL}/salaried-overdraft`,
     siteName: 'KreditScore',
     images: [
       {
@@ -47,7 +48,7 @@ export const metadata: Metadata = {
     images: ['/og-image-salaried-overdraft.jpg'],
   },
   alternates: {
-    canonical: 'https://kreditscore.com/salaried-overdraft',
+    canonical: `${SITE_URL}/salaried-overdraft`,
   },
   robots: {
     index: true,

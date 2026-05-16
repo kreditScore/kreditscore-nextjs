@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import Header from '@/components/Header';
 import CustomCursor from '@/components/CustomCursor';
@@ -25,6 +26,7 @@ import {
   Home,
   TrendingUp
 } from 'lucide-react';
+import { SITE_URL } from '@/lib/site';
 
 export default function BalanceTransferPage() {
   // Form States
@@ -104,7 +106,9 @@ export default function BalanceTransferPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     console.log('Form submitted:', formData);
-    alert('Application submitted successfully! Our team will contact you within 24 hours.');
+    toast.success(
+      'Application submitted successfully. Our team will contact you within 24 hours.'
+    );
   };
 
   // Filter functions for autocomplete
@@ -140,7 +144,7 @@ export default function BalanceTransferPage() {
               "name": "KreditScore"
             },
             "interestRate": "Starting from 9.25% p.a.",
-            "url": "https://kreditscore.com/balance-transfer"
+            "url": `${SITE_URL}/balance-transfer`
           })
         }}
       />

@@ -6,7 +6,7 @@ import Header from '@/components/Header';
 import ComingSoonModal from '@/components/ComingSoonModal';
 import LoanApplicationForm from '@/components/LoanApplicationFormImproved';
 import CustomCursor from '@/components/CustomCursor';
-import CompanyCategoryModal from '@/components/CompanyCategoryModal';
+import { SITE_URL } from '@/lib/site';
 import {
   ChevronRight,
   Shield,
@@ -68,9 +68,6 @@ export default function KreditScoreLanding() {
   // Loan Form state
   const [isLoanFormOpen, setIsLoanFormOpen] = useState(false);
   const [selectedLoanType, setSelectedLoanType] = useState('');
-
-  // Company Category Modal state
-  const [isCompanyCategoryOpen, setIsCompanyCategoryOpen] = useState(false);
 
   // Hero Form state (small 4-step form)
   const [currentStep, setCurrentStep] = useState(1);
@@ -154,6 +151,18 @@ export default function KreditScoreLanding() {
   const handleFeatureClick = (featureName: string) => {
     setSelectedFeature(featureName);
     setIsModalOpen(true);
+  };
+
+  const handleToolClick = (toolName: string) => {
+    if (toolName === 'Company Category') {
+      window.location.href = '/company-category';
+    } else if (toolName === 'Part Calculator') {
+      window.location.href = '/part-payment-calculator';
+    } else if (toolName === 'EMI Calculator') {
+      window.location.href = '/emi-calculator';
+    } else if (toolName === 'Credit Score') {
+      window.location.href = '/credit-score';
+    }
   };
 
   const handleLoanClick = (loanType: string) => {
@@ -327,8 +336,8 @@ export default function KreditScoreLanding() {
             "@type": "FinancialService",
             "name": "KreditScore",
             "alternateName": "Kredit Score",
-            "url": "https://kreditscore.com",
-            "logo": "https://kreditscore.com/logo.png",
+            "url": SITE_URL,
+            "logo": `${SITE_URL}/logo.png`,
             "description": "KreditScore provides instant personal loans, pre-approved loans, and financial services with quick approval and low interest rates. Get loans from ₹50,000 to ₹25 lakh with minimal documentation.",
             "address": {
               "@type": "PostalAddress",
@@ -992,59 +1001,38 @@ export default function KreditScoreLanding() {
         />
 
         <div className="max-w-7xl mx-auto relative z-10">
-          {/* Vertical Loan Type Buttons - 2 rows on mobile */}
+          {/* Loan Type Buttons - single row across all devices */}
           <div className="mb-8 md:mb-12 px-4 md:px-0">
-            {/* First Row - Mobile: 2 buttons, Desktop: all inline */}
-            <div className="flex flex-wrap justify-center gap-1 md:gap-2 mb-1 md:mb-0">
-              <button className="px-2 py-1.5 md:px-4 md:py-2 bg-[#87CEEB] text-white font-medium rounded-lg hover:bg-[#76bdda] transition-all shadow-md text-[10px] md:text-sm whitespace-nowrap">
+            <div className="overflow-x-auto pb-1">
+              <div className="flex flex-nowrap md:flex-wrap justify-start md:justify-center gap-1 md:gap-2 w-max md:w-auto mx-auto">
+                <button className="px-2 py-1.5 md:px-4 md:py-2 bg-[#87CEEB] text-white font-medium rounded-lg hover:bg-[#76bdda] transition-all shadow-md text-[10px] md:text-sm whitespace-nowrap">
                 Salaried Loan
-              </button>
-              <button
-                onClick={() => handleFeatureClick('Business Loan for Entrepreneurship')}
-                className="px-2 py-1.5 md:px-4 md:py-2 bg-[#FF8C00] text-white font-medium rounded-lg hover:bg-[#e67e00] transition-all shadow-md text-[10px] md:text-sm whitespace-nowrap"
-              >
+                </button>
+                <button
+                  onClick={() => handleFeatureClick('Business Loan for Entrepreneurship')}
+                  className="px-2 py-1.5 md:px-4 md:py-2 bg-[#FF8C00] text-white font-medium rounded-lg hover:bg-[#e67e00] transition-all shadow-md text-[10px] md:text-sm whitespace-nowrap"
+                >
                 Business Loan
-              </button>
-              <button
-                onClick={() => handleFeatureClick('Insurance')}
-                className="px-2 py-1.5 md:px-4 md:py-2 bg-[#87CEEB] text-white font-medium rounded-lg hover:bg-[#76bdda] transition-all shadow-md text-[10px] md:text-sm whitespace-nowrap md:inline-block hidden md:inline"
-              >
+                </button>
+                <button
+                  onClick={() => handleFeatureClick('Insurance')}
+                  className="px-2 py-1.5 md:px-4 md:py-2 bg-[#87CEEB] text-white font-medium rounded-lg hover:bg-[#76bdda] transition-all shadow-md text-[10px] md:text-sm whitespace-nowrap"
+                >
                 Insurance
-              </button>
-              <button
-                onClick={() => handleFeatureClick('Investment')}
-                className="px-2 py-1.5 md:px-4 md:py-2 bg-[#FF8C00] text-white font-medium rounded-lg hover:bg-[#e67e00] transition-all shadow-md text-[10px] md:text-sm whitespace-nowrap hidden md:inline-block"
-              >
+                </button>
+                <button
+                  onClick={() => handleFeatureClick('Investment')}
+                  className="px-2 py-1.5 md:px-4 md:py-2 bg-[#FF8C00] text-white font-medium rounded-lg hover:bg-[#e67e00] transition-all shadow-md text-[10px] md:text-sm whitespace-nowrap"
+                >
                 Investment
-              </button>
-              <button
-                onClick={() => handleFeatureClick('FD (Fixed Deposit)')}
-                className="px-2 py-1.5 md:px-4 md:py-2 bg-[#87CEEB] text-white font-medium rounded-lg hover:bg-[#76bdda] transition-all shadow-md text-[10px] md:text-sm whitespace-nowrap hidden md:inline-block"
-              >
+                </button>
+                <button
+                  onClick={() => handleFeatureClick('FD (Fixed Deposit)')}
+                  className="px-2 py-1.5 md:px-4 md:py-2 bg-[#87CEEB] text-white font-medium rounded-lg hover:bg-[#76bdda] transition-all shadow-md text-[10px] md:text-sm whitespace-nowrap"
+                >
                 FD
-              </button>
-            </div>
-
-            {/* Second Row - Mobile only: remaining 3 buttons */}
-            <div className="flex flex-wrap justify-center gap-1 md:hidden">
-              <button
-                onClick={() => handleFeatureClick('Insurance')}
-                className="px-2 py-1.5 bg-[#87CEEB] text-white font-medium rounded-lg hover:bg-[#76bdda] transition-all shadow-md text-[10px] whitespace-nowrap"
-              >
-                Insurance
-              </button>
-              <button
-                onClick={() => handleFeatureClick('Investment')}
-                className="px-2 py-1.5 bg-[#FF8C00] text-white font-medium rounded-lg hover:bg-[#e67e00] transition-all shadow-md text-[10px] whitespace-nowrap"
-              >
-                Investment
-              </button>
-              <button
-                onClick={() => handleFeatureClick('FD (Fixed Deposit)')}
-                className="px-2 py-1.5 bg-[#87CEEB] text-white font-medium rounded-lg hover:bg-[#76bdda] transition-all shadow-md text-[10px] whitespace-nowrap"
-              >
-                FD
-              </button>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -1112,7 +1100,7 @@ export default function KreditScoreLanding() {
           {/* Desktop Grid */}
           <div className="hidden md:grid grid-cols-2 lg:grid-cols-4 gap-6">
             {tools.map((tool, index) => {
-              const isCompanyCategory = tool.title === 'Company Category';
+              const isClickable = tool.title === 'Company Category' || tool.title === 'Part Calculator';
 
               return (
                 <motion.div
@@ -1122,13 +1110,13 @@ export default function KreditScoreLanding() {
                   viewport={{ once: true }}
                   transition={{ delay: index * 0.1 }}
                   whileHover={{ y: -10, scale: 1.05 }}
-                  onClick={() => isCompanyCategory && setIsCompanyCategoryOpen(true)}
+                  onClick={() => isClickable && handleToolClick(tool.title)}
                   className={`bg-white rounded-2xl p-8 text-center hover:shadow-2xl transition-all group relative overflow-hidden ${
-                    isCompanyCategory ? 'cursor-pointer' : ''
+                    isClickable ? 'cursor-pointer' : ''
                   }`}
                 >
-                  {/* Animated background for Company Category */}
-                  {isCompanyCategory && (
+                  {/* Animated background for clickable tools */}
+                  {isClickable && (
                     <motion.div
                       className="absolute inset-0 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 opacity-0 group-hover:opacity-100 transition-opacity"
                       animate={{
@@ -1146,9 +1134,9 @@ export default function KreditScoreLanding() {
                     {/* Animated icon container */}
                     <motion.div
                       className={`w-20 h-20 ${tool.color} rounded-2xl flex items-center justify-center mx-auto mb-4 ${
-                        isCompanyCategory ? 'group-hover:shadow-xl' : ''
+                        isClickable ? 'group-hover:shadow-xl' : ''
                       }`}
-                      animate={isCompanyCategory ? {
+                      animate={isClickable ? {
                         rotate: [0, 5, -5, 5, 0],
                         scale: [1, 1.05, 1, 1.05, 1]
                       } : {}}
@@ -1159,7 +1147,7 @@ export default function KreditScoreLanding() {
                       }}
                     >
                       <motion.div
-                        animate={isCompanyCategory ? {
+                        animate={isClickable ? {
                           y: [0, -3, 0, -3, 0]
                         } : {}}
                         transition={{
@@ -1176,8 +1164,8 @@ export default function KreditScoreLanding() {
                       {tool.title}
                     </h3>
 
-                    {/* Click indicator for Company Category */}
-                    {isCompanyCategory && (
+                    {/* Click indicator for clickable tools */}
+                    {isClickable && (
                       <motion.p
                         initial={{ opacity: 0 }}
                         whileInView={{ opacity: 1 }}
@@ -1195,7 +1183,7 @@ export default function KreditScoreLanding() {
           {/* Mobile Horizontal Scroll */}
           <div className="md:hidden flex gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-4">
             {tools.map((tool, index) => {
-              const isCompanyCategory = tool.title === 'Company Category';
+              const isClickable = tool.title === 'Company Category' || tool.title === 'Part Calculator';
 
               return (
                 <motion.div
@@ -1204,20 +1192,20 @@ export default function KreditScoreLanding() {
                   whileInView={{ opacity: 1, scale: 1 }}
                   viewport={{ once: true }}
                   transition={{ delay: index * 0.1 }}
-                  onClick={() => isCompanyCategory && setIsCompanyCategoryOpen(true)}
+                  onClick={() => isClickable && handleToolClick(tool.title)}
                   className={`bg-white rounded-2xl p-6 text-center shadow-lg snap-center flex-shrink-0 w-[200px] relative overflow-hidden ${
-                    isCompanyCategory ? 'active:scale-95 cursor-pointer' : ''
+                    isClickable ? 'active:scale-95 cursor-pointer' : ''
                   }`}
                 >
                   {/* Animated background for mobile */}
-                  {isCompanyCategory && (
+                  {isClickable && (
                     <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-indigo-50 opacity-50" />
                   )}
 
                   <div className="relative z-10">
                     <motion.div
                       className={`w-16 h-16 ${tool.color} rounded-2xl flex items-center justify-center mx-auto mb-3`}
-                      animate={isCompanyCategory ? {
+                      animate={isClickable ? {
                         rotate: [0, 5, -5, 0],
                         scale: [1, 1.05, 1]
                       } : {}}
@@ -1230,7 +1218,7 @@ export default function KreditScoreLanding() {
                       <tool.icon className="w-8 h-8 text-white" />
                     </motion.div>
                     <h3 className="text-sm font-bold text-gray-900">{tool.title}</h3>
-                    {isCompanyCategory && (
+                    {isClickable && (
                       <p className="text-xs text-blue-600 mt-1">Tap to explore</p>
                     )}
                   </div>
@@ -1354,7 +1342,7 @@ export default function KreditScoreLanding() {
             <div>
               <h4 className="text-[16px] font-semibold mb-4 text-[#87CEEB]">Resources</h4>
               <ul className="space-y-3">
-                <li><a href="#" className="text-[#cccccc] hover:text-white transition-colors text-[14px]">Blog & Articles</a></li>
+                <li><a href="/blog" className="text-[#cccccc] hover:text-white transition-colors text-[14px]">Blog & Articles</a></li>
                 <li><a href="#" className="text-[#cccccc] hover:text-white transition-colors text-[14px]">FAQs</a></li>
                 <li><a href="#" className="text-[#cccccc] hover:text-white transition-colors text-[14px]">Financial Tips</a></li>
               </ul>
@@ -1415,7 +1403,7 @@ export default function KreditScoreLanding() {
             <div>
               <h4 className="text-[10px] font-semibold mb-2 text-[#87CEEB]">Resources</h4>
               <ul className="space-y-1">
-                <li><a href="#" className="text-[#cccccc] hover:text-white transition-colors text-[8px] block">Blog & Articles</a></li>
+                <li><a href="/blog" className="text-[#cccccc] hover:text-white transition-colors text-[8px] block">Blog & Articles</a></li>
                 <li><a href="#" className="text-[#cccccc] hover:text-white transition-colors text-[8px] block">FAQs</a></li>
                 <li><a href="#" className="text-[#cccccc] hover:text-white transition-colors text-[8px] block">Financial Tips</a></li>
               </ul>
@@ -1485,12 +1473,6 @@ export default function KreditScoreLanding() {
         isOpen={isLoanFormOpen}
         onClose={() => setIsLoanFormOpen(false)}
         loanType={selectedLoanType}
-      />
-
-      {/* Company Category Modal */}
-      <CompanyCategoryModal
-        isOpen={isCompanyCategoryOpen}
-        onClose={() => setIsCompanyCategoryOpen(false)}
       />
     </div>
   );

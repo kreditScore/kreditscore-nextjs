@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
   title: 'Debt Consolidation Loan - Combine All Debts into Single EMI | KreditScore',
@@ -29,7 +30,7 @@ export const metadata: Metadata = {
     title: 'Debt Consolidation Loan - Single EMI for All Your Debts | KreditScore',
     description: 'Stop juggling multiple EMIs! Consolidate Personal Loan + Credit Card + Apps Loan + Overdraft into ONE single EMI. Reduce monthly burden by 50%. Interest from 10.25% p.a.',
     type: 'website',
-    url: 'https://kreditscore.com/debt-consolidation',
+    url: `${SITE_URL}/debt-consolidation`,
     siteName: 'KreditScore',
     images: [
       {
@@ -47,7 +48,7 @@ export const metadata: Metadata = {
     images: ['/og-image-debt-consolidation.jpg'],
   },
   alternates: {
-    canonical: 'https://kreditscore.com/debt-consolidation',
+    canonical: `${SITE_URL}/debt-consolidation`,
   },
   robots: {
     index: true,

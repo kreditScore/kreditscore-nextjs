@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ArrowRight, ArrowLeft, Check, IndianRupee, MapPin, Phone, Briefcase } from 'lucide-react';
 
@@ -66,11 +67,13 @@ const LoanApplicationForm = ({ isOpen, onClose, loanType }: LoanApplicationFormP
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!agreedToTerms) {
-      alert('Please agree to Terms & Conditions');
+      toast.error('Please agree to Terms & Conditions');
       return;
     }
     console.log('Form submitted:', formData);
-    alert(`✅ Application submitted successfully!\n\nWe will contact you shortly at ${formData.mobile}`);
+    toast.success(
+      `Application submitted. We will contact you shortly at ${formData.mobile}.`
+    );
     onClose();
     // Reset form
     setCurrentStep(1);

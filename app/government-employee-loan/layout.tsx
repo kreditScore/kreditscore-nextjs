@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
   title: 'Government Employee Loan - Lowest Interest Rates | KreditScore',
@@ -29,7 +30,7 @@ export const metadata: Metadata = {
     title: 'Government Employee Loan - Lowest Rates & Higher Amounts | KreditScore',
     description: 'Exclusive for govt employees! Lowest interest rates + higher loan amounts. Special benefits for government sector professionals.',
     type: 'website',
-    url: 'https://kreditscore.com/government-employee-loan',
+    url: `${SITE_URL}/government-employee-loan`,
     siteName: 'KreditScore',
     images: [
       {
@@ -47,7 +48,7 @@ export const metadata: Metadata = {
     images: ['/og-image-government-employee-loan.jpg'],
   },
   alternates: {
-    canonical: 'https://kreditscore.com/government-employee-loan',
+    canonical: `${SITE_URL}/government-employee-loan`,
   },
   robots: {
     index: true,

@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
   title: 'CA Loan - Exclusive Personal Loan for Chartered Accountants | KreditScore',
@@ -29,7 +30,7 @@ export const metadata: Metadata = {
     title: 'CA Loan - Highest Loan Amount for Chartered Accountants | KreditScore',
     description: 'Exclusive for CAs! Get the highest loan amount with special interest rates. Quick approval for Chartered Accountants.',
     type: 'website',
-    url: 'https://kreditscore.com/ca-loan',
+    url: `${SITE_URL}/ca-loan`,
     siteName: 'KreditScore',
     images: [
       {
@@ -47,7 +48,7 @@ export const metadata: Metadata = {
     images: ['/og-image-ca-loan.jpg'],
   },
   alternates: {
-    canonical: 'https://kreditscore.com/ca-loan',
+    canonical: `${SITE_URL}/ca-loan`,
   },
   robots: {
     index: true,

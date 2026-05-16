@@ -1,7 +1,10 @@
 import { MetadataRoute } from 'next';
+import { SITE_URL } from '@/lib/site';
+import { getAllPostsMeta } from '@/lib/blog';
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = 'https://kreditscore.com';
+  const baseUrl = SITE_URL;
+  const blogPosts = getAllPostsMeta();
 
   return [
     {
@@ -94,5 +97,17 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: 'weekly',
       priority: 0.7,
     },
+    {
+      url: `${baseUrl}/blog`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.85,
+    },
+    ...blogPosts.map((post) => ({
+      url: `${baseUrl}/blog/${post.slug}`,
+      lastModified: new Date(post.date),
+      changeFrequency: 'monthly' as const,
+      priority: 0.75,
+    })),
   ];
 }

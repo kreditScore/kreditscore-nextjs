@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
   title: 'Small Apps Loan - Get Upto ₹10 Lacs in 2 Hours | KreditScore',
@@ -29,7 +30,7 @@ export const metadata: Metadata = {
     title: 'Small Apps Loan - Get ₹10 Lacs in Just 2 Hours | KreditScore',
     description: 'Apply through our mobile app and get instant loan approval. Disbursal in 2 hours. Paperless, hassle-free process!',
     type: 'website',
-    url: 'https://kreditscore.com/small-apps-loan',
+    url: `${SITE_URL}/small-apps-loan`,
     siteName: 'KreditScore',
     images: [
       {
@@ -47,7 +48,7 @@ export const metadata: Metadata = {
     images: ['/og-image-small-apps-loan.jpg'],
   },
   alternates: {
-    canonical: 'https://kreditscore.com/small-apps-loan',
+    canonical: `${SITE_URL}/small-apps-loan`,
   },
   robots: {
     index: true,

@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
   title: 'Existing Loan Transfer - Transfer Without Income Proof | KreditScore',
@@ -29,7 +30,7 @@ export const metadata: Metadata = {
     title: 'Existing Loan Transfer - No Income Proof Required | KreditScore',
     description: 'Transfer any existing loan without income proof! Switch to lower rates and reduce EMI. Minimal documentation required.',
     type: 'website',
-    url: 'https://kreditscore.com/existing-loan-transfer',
+    url: `${SITE_URL}/existing-loan-transfer`,
     siteName: 'KreditScore',
     images: [
       {
@@ -47,7 +48,7 @@ export const metadata: Metadata = {
     images: ['/og-image-existing-loan-transfer.jpg'],
   },
   alternates: {
-    canonical: 'https://kreditscore.com/existing-loan-transfer',
+    canonical: `${SITE_URL}/existing-loan-transfer`,
   },
   robots: {
     index: true,

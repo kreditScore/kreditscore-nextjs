@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import { SITE_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
   title: 'Balance Transfer Loan - Reduce Your EMI by 50% | KreditScore',
@@ -29,7 +30,7 @@ export const metadata: Metadata = {
     title: 'Balance Transfer Loan - Cut Your EMI by Half | KreditScore',
     description: 'Reduce EMI by 50%! Transfer your high-interest loans to our low-rate balance transfer facility. Documentation required. Apply now!',
     type: 'website',
-    url: 'https://kreditscore.com/balance-transfer',
+    url: `${SITE_URL}/balance-transfer`,
     siteName: 'KreditScore',
     images: [
       {
@@ -47,7 +48,7 @@ export const metadata: Metadata = {
     images: ['/og-image-balance-transfer.jpg'],
   },
   alternates: {
-    canonical: 'https://kreditscore.com/balance-transfer',
+    canonical: `${SITE_URL}/balance-transfer`,
   },
   robots: {
     index: true,

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ArrowRight, ArrowLeft, Check } from 'lucide-react';
 
@@ -57,7 +58,7 @@ const LoanApplicationForm = ({ isOpen, onClose, loanType }: LoanApplicationFormP
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     console.log('Form submitted:', formData);
-    alert('Application submitted successfully! 🎉');
+    toast.success('Application submitted successfully');
     onClose();
     setCurrentStep(1);
     setFormData({

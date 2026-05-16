@@ -107,7 +107,7 @@ const Header = () => {
       items: [
         { href: '#cibil-guide', icon: Book, title: 'CIBIL Report Guide' },
         { href: '#score-faqs', icon: HelpCircle, title: 'Credit Score FAQs' },
-        { href: '#blog', icon: BookOpen, title: 'Blog & Articles' },
+        { href: '/blog', icon: BookOpen, title: 'Blog & Articles' },
         { href: '#tips', icon: Lightbulb, title: 'Financial Tips' },
         { href: '#videos', icon: Video, title: 'Video Tutorials' },
       ]

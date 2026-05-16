@@ -1,6 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
+import { toast } from 'sonner';
+import { useFirebasePhoneAuth } from '@/hooks/useFirebasePhoneAuth';
+import { submitLoanApplication } from '@/lib/submitApplication';
 import { motion, AnimatePresence } from 'framer-motion';
 import Header from '@/components/Header';
 import CustomCursor from '@/components/CustomCursor';
@@ -35,14 +38,22 @@ import {
   Send,
   Smartphone
 } from 'lucide-react';
+import { SITE_URL } from '@/lib/site';
 
 export default function SalariedOverdraftPage() {
+  const recaptchaSuffix = useId().replace(/[^a-zA-Z0-9]/g, '');
+  const recaptchaContainerId = `fb-rc-${recaptchaSuffix}`;
+  const { sendOtp, verifyOtp } = useFirebasePhoneAuth(recaptchaContainerId);
+
   // Form Steps: 0 = Name+Mobile, 1 = OTP, 2 = Personal, 3 = Employer, 4 = Office Address, 5 = Home Address, 6 = OD Details
   const [formStep, setFormStep] = useState(0);
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState(['', '', '', '']);
   const [otpTimer, setOtpTimer] = useState(30);
   const [canResendOTP, setCanResendOTP] = useState(false);
+  const [idToken, setIdToken] = useState<string | null>(null);
+  const [otpFlowBusy, setOtpFlowBusy] = useState(false);
+  const [submitBusy, setSubmitBusy] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -128,19 +139,19 @@ export default function SalariedOverdraftPage() {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSendOTP = (e: React.FormEvent) => {
+  const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.fullName && formData.mobile.length === 10) {
+    if (!formData.fullName || formData.mobile.length !== 10) return;
+    setOtpFlowBusy(true);
+    const ok = await sendOtp(`+91${formData.mobile}`);
+    if (ok) {
       setOtpSent(true);
       setFormStep(1);
       setOtpTimer(30);
       setCanResendOTP(false);
-      // Auto-fill OTP for demo
-      setTimeout(() => {
-        setOtp(['1', '2', '3', '4']);
-      }, 500);
-      console.log('OTP sent to:', formData.mobile);
+      setOtp(['', '', '', '']);
     }
+    setOtpFlowBusy(false);
   };
 
   const handleOTPChange = (index: number, value: string) => {
@@ -157,18 +168,26 @@ export default function SalariedOverdraftPage() {
     }
   };
 
-  const handleResendOTP = () => {
+  const handleResendOTP = async () => {
     setOtpTimer(30);
     setCanResendOTP(false);
-    console.log('OTP resent to:', formData.mobile);
+    setOtp(['', '', '', '']);
+    setOtpFlowBusy(true);
+    await sendOtp(`+91${formData.mobile}`);
+    setOtpFlowBusy(false);
   };
 
-  const handleVerifyOTP = (e: React.FormEvent) => {
+  const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     const otpValue = otp.join('');
-    if (otpValue.length === 4) {
-      console.log('OTP verified:', otpValue);
+    if (otpValue.length !== 4) return;
+    setOtpFlowBusy(true);
+    const token = await verifyOtp(otpValue);
+    setOtpFlowBusy(false);
+    if (token) {
+      setIdToken(token);
       setFormStep(2);
+      setOtp(['', '', '', '']);
     }
   };
 
@@ -180,10 +199,26 @@ export default function SalariedOverdraftPage() {
     if (formStep > 2) setFormStep(formStep - 1);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Form submitted:', formData);
-    setIsSubmitted(true);
+    if (!idToken) {
+      toast.error('Please verify your mobile number again.');
+      return;
+    }
+    setSubmitBusy(true);
+    try {
+      await submitLoanApplication(idToken, {
+        source: 'salaried-overdraft',
+        displayName: formData.fullName,
+        payload: { ...formData, mobile: `+91${formData.mobile}` },
+      });
+      toast.success('Application submitted successfully');
+      setIsSubmitted(true);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Submission failed');
+    } finally {
+      setSubmitBusy(false);
+    }
   };
 
   // Filter functions for autocomplete
@@ -208,6 +243,7 @@ export default function SalariedOverdraftPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
+      <div id={recaptchaContainerId} className="hidden" aria-hidden="true" />
       {/* Schema.org JSON-LD */}
       <script
         type="application/ld+json"
@@ -223,7 +259,7 @@ export default function SalariedOverdraftPage() {
             },
             "interestRate": "12% p.a. onwards",
             "feesAndCommissionsSpecification": "No annual fees. Interest charged only on utilized amount.",
-            "url": "https://kreditscore.com/salaried-overdraft"
+            "url": `${SITE_URL}/salaried-overdraft`
           })
         }}
       />
@@ -788,11 +824,12 @@ export default function SalariedOverdraftPage() {
 
                         <motion.button
                           type="submit"
-                          className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white px-6 py-3 rounded-full font-semibold hover:from-green-700 hover:to-emerald-700 shadow-lg text-sm flex items-center justify-center space-x-2"
+                          disabled={otpFlowBusy}
+                          className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white px-6 py-3 rounded-full font-semibold hover:from-green-700 hover:to-emerald-700 shadow-lg text-sm flex items-center justify-center space-x-2 disabled:opacity-50"
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
                         >
-                          <span>Send OTP</span>
+                          <span>{otpFlowBusy ? 'Sending…' : 'Send OTP'}</span>
                           <ArrowRight className="w-5 h-5" />
                         </motion.button>
                       </div>
@@ -828,8 +865,9 @@ export default function SalariedOverdraftPage() {
                           ) : (
                             <button
                               type="button"
-                              onClick={handleResendOTP}
-                              className="text-sm text-green-600 font-semibold hover:underline"
+                              onClick={() => void handleResendOTP()}
+                              disabled={otpFlowBusy}
+                              className="text-sm text-green-600 font-semibold hover:underline disabled:opacity-50"
                             >
                               Resend OTP
                             </button>
@@ -839,17 +877,20 @@ export default function SalariedOverdraftPage() {
                         <div className="flex space-x-3">
                           <button
                             type="button"
-                            onClick={() => setFormStep(0)}
+                            onClick={() => {
+                              setFormStep(0);
+                              setIdToken(null);
+                            }}
                             className="flex-1 bg-gray-200 text-gray-700 px-4 py-3 rounded-full font-semibold hover:bg-gray-300 transition-all text-sm"
                           >
                             ← Back
                           </button>
                           <button
                             type="submit"
-                            disabled={otp.join('').length !== 4}
+                            disabled={otp.join('').length !== 4 || otpFlowBusy}
                             className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 text-white px-4 py-3 rounded-full font-semibold hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg text-sm"
                           >
-                            Verify OTP →
+                            {otpFlowBusy ? 'Verifying…' : 'Verify OTP →'}
                           </button>
                         </div>
                       </div>
@@ -1614,9 +1655,10 @@ export default function SalariedOverdraftPage() {
                           </button>
                           <button
                             type="submit"
-                            className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 text-white px-4 py-3 rounded-full font-semibold hover:from-green-700 hover:to-emerald-700 shadow-lg text-sm flex items-center justify-center space-x-2"
+                            disabled={submitBusy}
+                            className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 text-white px-4 py-3 rounded-full font-semibold hover:from-green-700 hover:to-emerald-700 shadow-lg text-sm flex items-center justify-center space-x-2 disabled:opacity-50"
                           >
-                            <span>Submit Application</span>
+                            <span>{submitBusy ? 'Submitting…' : 'Submit Application'}</span>
                             <CheckCircle className="w-5 h-5" />
                           </button>
                         </div>

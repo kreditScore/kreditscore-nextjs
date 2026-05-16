@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import Header from '@/components/Header';
 import CustomCursor from '@/components/CustomCursor';
@@ -25,6 +26,7 @@ import {
   Calendar,
   Home
 } from 'lucide-react';
+import { SITE_URL } from '@/lib/site';
 
 export default function SmallAppsLoanPage() {
   // Form States
@@ -104,7 +106,9 @@ export default function SmallAppsLoanPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     console.log('Form submitted:', formData);
-    alert('Application submitted successfully! Our team will contact you within 24 hours.');
+    toast.success(
+      'Application submitted successfully. Our team will contact you within 24 hours.'
+    );
   };
 
   // Filter functions for autocomplete
@@ -141,7 +145,7 @@ export default function SmallAppsLoanPage() {
             },
             "interestRate": "14% p.a. onwards",
             "feesAndCommissionsSpecification": "Processing fee: 2% of loan amount",
-            "url": "https://kreditscore.com/small-apps-loan"
+            "url": `${SITE_URL}/small-apps-loan`
           })
         }}
       />
