@@ -221,9 +221,9 @@ export default function CompanyCategoryPage() {
                   </div>
                 ) : (
                   <div className="divide-y divide-slate-200">
-                    {results.map((company) => (
+                    {results.map((company, idx) => (
                       <button
-                        key={`${company.company}-${company.bank}-${company.segment}`}
+                        key={`${idx}-${company.company}-${company.bank}-${company.category}-${company.segment}`}
                         type="button"
                         onClick={() => handleSelect(company)}
                         className="w-full px-5 py-4 text-left transition hover:bg-slate-50"
